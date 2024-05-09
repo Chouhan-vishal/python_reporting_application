@@ -1,0 +1,4 @@
+*.pyc
+.env
+application_environment/
+reporting_application/logs/

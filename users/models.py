@@ -88,7 +88,9 @@ class User(AbstractBaseUser):
     )
     first_name = models.CharField(max_length=255, null=True)
     last_name = models.CharField(max_length=255, null=True)
-    phone_number = models.CharField(max_length=255, null=False)
+    team_name = models.CharField(max_length=255, null=True)
+    manager_name = models.CharField(max_length=255, null=True)
+    phone_number = models.CharField(max_length=255, null=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
     created_at = models.DateTimeField(verbose_name='created at', auto_now_add=True)
@@ -163,3 +165,12 @@ class ReportPermission(models.Model):
     reports_permission = models.JSONField(dict, default=default_permission_set)
     def __str__(self):
             return str(self.reports_permission)
+        
+class UserActivityLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    report = models.CharField(max_length=255)
+    log = models.TextField()
+
+    def __str__(self):
+        return self.report

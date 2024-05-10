@@ -1,5 +1,8 @@
-from django.urls import path
+from django.urls import path, re_path
 from . import views
+from django.urls import path
+
+
 
 urlpatterns = [
     path('', views.users),
@@ -22,5 +25,32 @@ urlpatterns = [
     path('profile/', views.profile),
     path('profile', views.profile),
     path('<int:user_id>/report_permissions/', views.report_permissions),
-    path('<int:user_id>/report_permissions', views.report_permissions)
+    path('<int:user_id>/report_permissions', views.report_permissions),
+    path('report-logs/', views.report_logs),
+    path('report-logs', views.report_logs),
 ]
+# urlpatterns = [
+#     re_path('', views.users),
+#     re_path("two-factor-authentication/?$", views.two_factor_authentication),
+#     # re_path("two-factor-authentication", views.two_factor_authentication),
+#     # re_path('create', views.create),
+#     re_path('create/?$', views.create),
+#     # re_path('login', views.login, name='login'),
+#     re_path('login/?$', views.login, name='login'),
+#     # re_path('logout', views.logout, name='logout'),
+#     re_path('logout/?$', views.logout, name='logout'),
+#     # re_path('<int:pk>', views.users),
+#     re_path('<int:pk>/?$', views.users),
+#     # re_path('request-password-reset-otp', views.reset_password_request_otp),
+#     re_path('request-password-reset-otp/?$', views.reset_password_request_otp),
+#     # re_path('verify-otp', views.verify_otp),
+#     re_path('verify-otp/?$', views.verify_otp),
+#     # re_path('reset-password', views.reset_password),
+#     re_path('reset-password/?$', views.reset_password),
+#     re_path('profile/?$', views.profile),
+#     # re_path('profile', views.profile),
+#     re_path('<int:user_id>/report_permissions/?$', views.report_permissions),
+#     # re_path('<int:user_id>/report_permissions', views.report_permissions),
+#     re_path('report-logs/?$', views.report_logs),
+#     re_path('report-logs', views.report_logs),
+# ]

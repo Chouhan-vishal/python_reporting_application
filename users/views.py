@@ -14,17 +14,40 @@ from .services.utils import generate_otp, send_otp_email
 from datetime import datetime, timedelta
 from django.utils.timezone import now as aware_utcnow
 import pyotp
-from .serializers import UserSerializer
-from .models import User, OTP, TwoFactorAuthentication, ReportPermission
+from .serializers import UserSerializer, UserActivityLogSerializer, LoginSerializer
+from .models import (
+    User,
+    OTP,
+    TwoFactorAuthentication,
+    ReportPermission,
+    UserActivityLog
+)
+
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
+
 import logging
 import os
-
-# Create your views here.
-
 
 logger = logging.getLogger('users')
 
 
+@extend_schema(
+    request=UserSerializer,
+    responses={
+        HTTP_201_CREATED: OpenApiTypes.OBJECT,
+        HTTP_400_BAD_REQUEST: OpenApiTypes.OBJECT
+    },
+    parameters=[
+        OpenApiParameter(
+                name='Authorization',
+                location= OpenApiParameter.HEADER,
+                description='Authorization token',
+                required=True,
+                type=OpenApiTypes.STR
+            ),
+    ]
+)
 @api_view(['POST'])
 @permission_classes([IsAdminUser, IsAuthenticated])
 def create(request):
@@ -88,6 +111,13 @@ def two_factor_authentication(request):
         logger.error(f'error during user authentication: {str(e)}')                         
         return response(FAILED, {ERROR: f'error during user authentication: {str(e)}'}, HTTP_400_BAD_REQUEST)                                                                    
 
+@extend_schema(
+    request=LoginSerializer,
+    responses={
+        HTTP_200_OK: {},
+        HTTP_400_BAD_REQUEST: {OpenApiTypes.OBJECT}
+    }
+)
 @api_view(['POST'])
 def login(request):
     """
@@ -140,8 +170,6 @@ def logout(request):
     Returns:
         Response: Returns {"message": "Logged out successfully"} upon successful logout.
     """
-    import pdb
-    pdb.set_trace()
     try:
         access_token = request.headers.get('Authorization').split(' ')[1]
         if access_token is None:
@@ -178,10 +206,10 @@ def users(request, pk=None):
                 return response(SUCCESS, serializer.data, HTTP_200_OK)
             except User.DoesNotExist:
                 logger.error(f'User with id {pk} does not exist')
-                return Response({'error': 'User does not exist'}, status=HTTP_400_BAD_REQUEST)
+                return response(FAILED, {ERROR: 'User does not exist'}, status=HTTP_400_BAD_REQUEST)
             except Exception as e:
                 logger.error(f'error during user detail retrieval: {str(e)}')
-                return Response({'error': 'error during user detail retrieval'}, status=HTTP_400_BAD_REQUEST)
+                return response(FAILED, {ERROR: 'error during user detail retrieval'}, status=HTTP_400_BAD_REQUEST)
         else:
             try:
                 users = User.objects.all()
@@ -189,7 +217,7 @@ def users(request, pk=None):
                 return response(SUCCESS, serializer.data, HTTP_200_OK)
             except Exception as e:
                 logger.error(f'error during user list retrieval: {str(e)}')
-                return Response({'error': 'error during user list retrieval'}, status=HTTP_400_BAD_REQUEST)
+                return response(FAILED, {ERROR: 'error during user list retrieval'}, status=HTTP_400_BAD_REQUEST)
 
     if request.method == 'PATCH':
         try:
@@ -197,18 +225,18 @@ def users(request, pk=None):
             serializer = UserSerializer(user, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=HTTP_200_OK)
+                return response(SUCCESS ,serializer.data, status=HTTP_200_OK)
             logger.debug(f'User update failed: {serializer.errors}')
             raise ValidationError(f'User update failed: {str(serializer.errors)}')
         except User.DoesNotExist:
             logger.error(f'User with id {pk} does not exist')
-            return Response({ERROR: 'User does not exist'}, status=HTTP_400_BAD_REQUEST)
+            return response(FAILED, {ERROR: 'User does not exist'}, status=HTTP_400_BAD_REQUEST)
         except ValidationError as e:
             logger.error(f'Validation Error during user update: {str(e)}')
-            return Response({ERROR: str(e)}, status=HTTP_400_BAD_REQUEST)
+            return response(FAILED, {ERROR: str(e)}, status=HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f'error during user update: {str(e)}')
-            return Response({ERROR: 'error during user update'}, status=HTTP_400_BAD_REQUEST)
+            return response(FAILED, {ERROR: 'error during user update'}, status=HTTP_400_BAD_REQUEST)
         
 
     
@@ -222,7 +250,7 @@ def profile(request):
         return response(SUCCESS, serializer.data, HTTP_200_OK)
     except Exception as e:
         logger.error(f'error during user detail retrieval: {str(e)}')
-        return Response({ERROR: 'error during user detail retrieval'}, status=HTTP_400_BAD_REQUEST)
+        return response(FAILED, {ERROR: 'error during user detail retrieval'}, status=HTTP_400_BAD_REQUEST)
     
 @api_view(['PATCH'])
 @permission_classes([IsAdminUser, IsAuthenticated])
@@ -243,18 +271,18 @@ def profile_update(request, pk):
         serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=HTTP_200_OK)
+            return response(SUCCESS, serializer.data, status=HTTP_200_OK)
         logger.debug(f'User update failed: {serializer.errors}')
         raise ValidationError(f'User update failed: {str(serializer.errors)}')
     except User.DoesNotExist:
         logger.error(f'User with id {pk} does not exist')
-        return Response({ERROR: 'User does not exist'}, status=HTTP_400_BAD_REQUEST)
+        return response({ERROR: 'User does not exist'}, status=HTTP_400_BAD_REQUEST)
     except ValidationError as e:
         logger.error(f'error during user update: {str(e)}')
-        return Response({ERROR: str(e)}, status=HTTP_400_BAD_REQUEST)
+        return response(FAILED, {ERROR: str(e)}, status=HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f'error during user update: {str(e)}')
-        return Response({ERROR: 'error during user update'}, status=HTTP_400_BAD_REQUEST)
+        return response(FAILED, {ERROR: 'error during user update'}, status=HTTP_400_BAD_REQUEST)
     
     
 
@@ -367,6 +395,16 @@ def reset_password(request):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated, IsAdminUser])
 def report_permissions(request, user_id):
+    """
+    Allow permission to the user to view the reports.
+
+    Args:
+        request (HttpRequest): User id and permissions(dictionary) to be updated.
+
+
+    Returns:
+        Response: Reurn a success message if the permissions are updated successfully, else returns an error message.
+    """
     try:
         user = User.objects.get(id=user_id)
         permission_obj = request.data.get('permissions')
@@ -378,3 +416,24 @@ def report_permissions(request, user_id):
     except Exception as e:
         logger.error(f'Error during report permission update: {str(e)}')
         return response(FAILED, {ERROR: f'Error during report permission update: {str(e)}'}, HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def report_logs(request):
+    """
+    Return User Activity Logs.
+
+    Args:
+        request (HttpRequest): None
+
+    Returns:
+        Response: Returns All the User Activity Logs from UserActivityLog model.
+    """
+    try:
+        user_activity_logs = UserActivityLog.objects.all()
+        serializer = UserActivityLogSerializer(user_activity_logs, many=True)
+        return response(SUCCESS, serializer.data, HTTP_200_OK)
+    except Exception as e:
+        logger.error(f'Error during report logs retrieval: {str(e)}')
+        return response(FAILED, {ERROR: f'Error during report logs retrieval: {str(e)}'}, HTTP_400_BAD_REQUEST)

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Hierarchy, TwoFactorAuthentication, ReportPermission
+from .models import User, Hierarchy, TwoFactorAuthentication, ReportPermission, UserActivityLog
 from django.db import transaction
 
 
@@ -17,8 +17,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'is_active', 'is_admin', 'created_at', 'last_login',
-                  'email', 'hierarchy', "role", 'first_name', 'last_name', 'phone_number']
+        fields = ['id', 'username', 'first_name', 'last_name', 'team_name', 'manager_name', 'is_active', 'is_admin', 'created_at', 'last_login',
+                  'email', 'hierarchy', "role", 'phone_number']
         read_only_fields = ['created_at', 'last_login']
 
     def create(self, validated_data):
@@ -55,3 +55,41 @@ class UserSerializer(serializers.ModelSerializer):
             return instance
 
 
+
+class UserActivityLogSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    class Meta:
+        model = UserActivityLog
+        fields = ['id', 'created_at', 'report', 'log', 'user']
+        
+
+    def to_representation(self, instance):
+        """
+        Custom representation of UserActivityLog instance
+        """
+        representation = super().to_representation(instance)
+        user_representation = representation.get('user')
+        if user_representation:
+            # Filter the fields you want to return from the nested UserSerializer
+            user_representation = {
+                'id': user_representation.get('id'),
+                'username': user_representation.get('username'),
+                'team_name': user_representation.get('team_name'),
+                'manager_name': user_representation.get('manager_name')
+            }
+            representation['user'] = user_representation
+        return representation
+    
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField()
+
+    def validate(self, data):
+        """
+        Check if username and password are provided.
+        """
+        username = data.get('username')
+        password = data.get('password')
+        if not (username and password):
+            raise serializers.ValidationError("Username and password are required")
+        return data

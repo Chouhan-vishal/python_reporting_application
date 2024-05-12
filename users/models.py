@@ -76,6 +76,7 @@ class User(AbstractBaseUser):
         blank=True
     )
     username = models.CharField(
+        null=False,
         verbose_name="username",
         max_length=255,
         unique=True,

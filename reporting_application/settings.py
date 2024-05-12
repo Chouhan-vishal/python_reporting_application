@@ -49,11 +49,10 @@ INSTALLED_APPS = [
     'reports',
     'drf_spectacular',
 ]
-
+APPEND_SLASH = False
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -109,8 +108,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Your Project API',
-    'DESCRIPTION': 'Your project description',
+    'TITLE': 'Report Dashboard API',
+    'DESCRIPTION': 'API for presenting the Interface for the Admin Dashboard ',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }

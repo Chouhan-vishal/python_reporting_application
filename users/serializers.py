@@ -15,6 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
     hierarchy = HierarchySerializer(read_only=True)
     role = serializers.CharField(write_only=True)
 
+
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'team_name', 'manager_name', 'is_active', 'is_admin', 'created_at', 'last_login',
@@ -47,6 +48,8 @@ class UserSerializer(serializers.ModelSerializer):
             instance.username = validated_data.get('username', instance.username)
             instance.email = validated_data.get('email', instance.email)
             instance.first_name = validated_data.get('first_name', instance.first_name)
+            instance.team_name = validated_data.get('team_name', instance.team_name)
+            instance.manager_name = validated_data.get('team_name', instance.manager_name)
             instance.last_name = validated_data.get('last_name', instance.last_name)
             instance.phone_number = validated_data.get('phone_number', instance.phone_number)
             instance.is_active = validated_data.get('is_active', instance.is_active)
@@ -81,8 +84,8 @@ class UserActivityLogSerializer(serializers.ModelSerializer):
         return representation
     
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField()
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True)
 
     def validate(self, data):
         """
@@ -92,4 +95,28 @@ class LoginSerializer(serializers.Serializer):
         password = data.get('password')
         if not (username and password):
             raise serializers.ValidationError("Username and password are required")
+        return data
+    
+class TwoFactorAuthenticationSerializer(serializers.Serializer):
+    otp = serializers.CharField(required=True, max_length=6)
+    secret_key = serializers.CharField(required=False, allow_blank=True)
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(required=True)
+
+    def validate(self, data):
+        """
+        Validate the input data.
+        """
+        otp = data.get('otp')
+        secret_key = data.get('secret_key')
+        username = data.get('username')
+        password = data.get('password')
+
+        # Your validation logic here
+        # For example, you can check if the OTP is a 6-digit number
+        if not otp.isdigit() or len(otp) != 6:
+            raise serializers.ValidationError("Invalid OTP format. OTP must be a 6-digit number.")
+
+        # Additional validation logic can be added as needed
+
         return data

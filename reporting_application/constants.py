@@ -1,3 +1,5 @@
 SUCCESS = 'success'
 FAILED = 'failed'
 ERROR = 'error'
+MESSAGE = 'message'
+DATA = 'data'

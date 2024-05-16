@@ -1,10 +1,15 @@
 # myapp/sql_service.py
-
+import os
 import pyodbc
-server = "20.244.153.185,14332"
-database = "SLSS_Datalake"
-username = "SLSSread"
-password = "SLSSread@1234"
+from dotenv import load_dotenv
+
+load_dotenv()
+
+database = os.environ["SSLS_DATABASE_NAME"]
+username = os.environ["SSLS_DATABASE_USER"]
+password = os.environ["SSLS_DATABASE_PASSWORD"]
+server = os.environ["SSLS_DATABASE_HOST"]
+
 def create_sql_server_connection():
     try:
         # Establish connection to SQL Server

@@ -5,13 +5,11 @@ from django.conf import settings
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, username, email, phone_number, hierarchy = None, first_name=None, last_name=None, password=None, is_admin=False, admin_user= None):
+    def create_user(self, emp_code, email, phone_number, team_name, manager_name,  hierarchy = None, first_name=None, last_name=None, password=None, is_admin=False, admin_user= None):
         """
-        Creates and saves a User with the given email, username, phone_number,
+        Creates and saves a User with the given email, emp_code, phone_number,
         first_name, last_name and password.
         """
-        if not username:
-            raise ValueError("Users must have a username")
         if not email:
             raise ValueError("Users must have an email address")
         if not phone_number:
@@ -24,26 +22,27 @@ class UserManager(BaseUserManager):
             last_name = "",
 
         user = self.model(
-            username=username,
+            emp_code=emp_code,
             email=email,
             phone_number=phone_number,
             first_name=first_name,
             last_name=last_name,
             is_admin=is_admin,
             hierarchy=hierarchy,
-            admin_user = admin_user
+            admin_user = admin_user,
+            team_name = team_name,
+            manager_name=manager_name
         )
 
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, username, email, phone_number, password=None):
+    def create_superuser(self, email, phone_number, password=None):
         """
         Creates and saves a superuser with the given email, phone_number, and password.
         """
         user = self.create_user(
-            username=username,
             email=email,
             phone_number=phone_number,
             is_admin=True
@@ -75,9 +74,9 @@ class User(AbstractBaseUser):
         null=True,
         blank=True
     )
-    username = models.CharField(
+    emp_code = models.CharField(
         null=False,
-        verbose_name="username",
+        verbose_name="employee code",
         max_length=255,
         unique=True,
     )
@@ -98,10 +97,10 @@ class User(AbstractBaseUser):
     last_login = models.DateTimeField(verbose_name='last login', auto_now=True)
     objects = UserManager()
 
-    USERNAME_FIELD = "username"
+    USERNAME_FIELD = "email"
 
     def __str__(self):
-        return self.username
+        return self.email
 
     def has_perm(self, perm, obj=None):
         "Does the user have a specific permission?"

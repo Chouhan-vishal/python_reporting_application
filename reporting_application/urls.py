@@ -27,5 +27,6 @@ urlpatterns = [
     # Project URLs
     re_path('^admin/?$', admin.site.urls),
     re_path("^api/users/?",include("users.urls")),
-    # re_path("^api/reports/?$",include("reports.urls")),
+    # re_path("^api/reports/?",include("reports.urls")),
+    path('api/reports/', include("reports.urls"))
 ]

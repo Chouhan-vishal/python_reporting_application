@@ -14,11 +14,14 @@ class HierarchySerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     hierarchy = HierarchySerializer(read_only=True)
     role = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    last_login = serializers.DateTimeField(read_only=True)
 
 
     class Meta:
         model = User
-        fields = ['id', 'emp_code', 'first_name', 'last_name', 'team_name', 'manager_name', 'is_active', 'is_admin', 'created_at', 'last_login',
+        fields = ['id', 'emp_code', 'first_name', 'last_name', 'team_name', 'manager_name', 'password', 'is_active', 'is_admin', 'created_at', 'last_login',
                   'email', 'hierarchy', "role", 'phone_number']
         read_only_fields = ['created_at', 'last_login']
 
@@ -123,3 +126,12 @@ class TwoFactorAuthenticationSerializer(serializers.Serializer):
         # Additional validation logic can be added as needed
 
         return data
+
+
+class UserSearchSerializer(serializers.Serializer):
+    query = serializers.CharField(max_length=255)
+
+    def validate_query(self, value):
+        if not value:
+            raise serializers.ValidationError("Query cannot be empty.")
+        return value

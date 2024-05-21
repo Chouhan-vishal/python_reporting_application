@@ -2,12 +2,12 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from reports.services import report_services
 from collections import defaultdict
-from datetime import datetime, timedelta
 
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def sales_summary_report(request):
     start_date = request.data.get("start_date", None)
     end_date = request.data.get("end_date", None)

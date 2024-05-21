@@ -62,9 +62,9 @@ class TwoFactorAuthenticationView(APIView):
         try:
             otp = request.data.get('otp')
             secret_key = request.data.get('secret_key', None)
-            username = request.data.get('username')
+            email = request.data.get('email')
             password = request.data.get('password')
-            user = authenticate(username=username, password=password)
+            user = authenticate(email=email, password=password)
             user_mfa = TwoFactorAuthentication.objects.filter(user=user).first()
             if secret_key:
                 user_mfa.is_enabled = True
@@ -92,7 +92,7 @@ class Login(APIView):
     request=inline_serializer(
         name="LoginSerializer",
         fields={
-            "username": serializers.CharField(required=True),
+            "email": serializers.CharField(required=True),
             "password": serializers.CharField(required=True)
         }
         ),
@@ -103,10 +103,10 @@ class Login(APIView):
     )
     def post(self, request):
         """
-        Authenticate a user using username and password.
+        Authenticate a user using email and password.
 
         Args:
-            request (HttpRequest): The request object containing username and password.
+            request (HttpRequest): The request object containing email and password.
 
         Returns:
             Response: Returns authentication tokens if credentials are valid. 
@@ -116,11 +116,11 @@ class Login(APIView):
         """
 
         try:
-            username = request.data.get('username')
+            email = request.data.get('email')
             password = request.data.get('password')
-            if not (username and password):
-                raise Exception(f"Username and password are required") 
-            user = authenticate(username=username, password=password)
+            if not (email and password):
+                raise Exception(f"email and password are required") 
+            user = authenticate(email=email, password=password)
             if user is None:
                 return response(FAILED, {MESSAGE: "Invalid credentials"}, HTTP_400_BAD_REQUEST)
             if not user.is_admin:
@@ -130,7 +130,7 @@ class Login(APIView):
             else:
                 mfa = TwoFactorAuthentication.objects.filter(user=user).first()
                 mfa_enabled = mfa.is_enabled
-                logger.info(f'User with "username": {username} authenticated successfully')
+                logger.info(f'User with "email": {email} authenticated successfully')
                 return response(SUCCESS, {"is_valid": True, "mfa_enabled": mfa_enabled} ,HTTP_200_OK)   
         except User.DoesNotExist:
             logger.error(f'User with id {user.id} does not exist')
@@ -318,7 +318,7 @@ class Profile(APIView):
         try:
             user = request.user
             serializer = UserSerializer(user)
-            logger.info(f'User with "username": {user.username} retrieved successfully')
+            logger.info(f'User with "email": {user.email} retrieved successfully')
             return response(SUCCESS, serializer.data, status.HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during user detail retrieval: {str(e)}')

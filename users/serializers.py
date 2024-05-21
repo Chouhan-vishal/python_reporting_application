@@ -18,7 +18,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name', 'team_name', 'manager_name', 'is_active', 'is_admin', 'created_at', 'last_login',
+        fields = ['id', 'emp_code', 'first_name', 'last_name', 'team_name', 'manager_name', 'is_active', 'is_admin', 'created_at', 'last_login',
                   'email', 'hierarchy', "role", 'phone_number']
         read_only_fields = ['created_at', 'last_login']
 
@@ -45,7 +45,7 @@ class UserSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(f'hierarchy with name {hierarchy_name} does not exist ')
                 else:
                     instance.hierarchy = hierarchy_obj
-            instance.username = validated_data.get('username', instance.username)
+            instance.emp_code = validated_data.get('emp_code', instance.emp_code)
             instance.email = validated_data.get('email', instance.email)
             instance.first_name = validated_data.get('first_name', instance.first_name)
             instance.team_name = validated_data.get('team_name', instance.team_name)
@@ -76,7 +76,10 @@ class UserActivityLogSerializer(serializers.ModelSerializer):
             # Filter the fields you want to return from the nested UserSerializer
             user_representation = {
                 'id': user_representation.get('id'),
-                'username': user_representation.get('username'),
+                'emp_code': user_representation.get('emp'),
+                'first_name': user_representation.get('first_name'),
+                'last_name': user_representation.get('last_name'),
+                'email': user_representation.get('email'),
                 'team_name': user_representation.get('team_name'),
                 'manager_name': user_representation.get('manager_name')
             }
@@ -84,23 +87,23 @@ class UserActivityLogSerializer(serializers.ModelSerializer):
         return representation
     
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField(required=True)
+    email = serializers.CharField(required=True)
     password = serializers.CharField(required=True)
 
     def validate(self, data):
         """
-        Check if username and password are provided.
+        Check if email and password are provided.
         """
-        username = data.get('username')
+        email = data.get('email')
         password = data.get('password')
-        if not (username and password):
-            raise serializers.ValidationError("Username and password are required")
+        if not (email and password):
+            raise serializers.ValidationError("email and password are required")
         return data
     
 class TwoFactorAuthenticationSerializer(serializers.Serializer):
     otp = serializers.CharField(required=True, max_length=6)
     secret_key = serializers.CharField(required=False, allow_blank=True)
-    username = serializers.CharField(required=True)
+    email = serializers.CharField(required=True)
     password = serializers.CharField(required=True)
 
     def validate(self, data):
@@ -109,7 +112,7 @@ class TwoFactorAuthenticationSerializer(serializers.Serializer):
         """
         otp = data.get('otp')
         secret_key = data.get('secret_key')
-        username = data.get('username')
+        email = data.get('email')
         password = data.get('password')
 
         # Your validation logic here

@@ -2,6 +2,7 @@
 import os
 import pyodbc
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -22,3 +23,33 @@ def create_sql_server_connection():
         # Handle any errors
         print("Error accessing SQL Server:", e)
         return None
+
+
+def get_previous_date(end_date):
+    """
+    This function returns the previous date based on the given date and end date.
+    If the end_date month is not the current month, it returns the day after today.
+    If today is Sunday, it returns the preceding Saturday.
+    
+    Args:
+    today_date (datetime.date): The given date as a datetime.date object.
+    end_date (datetime.date): The end date as a datetime.date object.
+
+    Returns:
+    datetime.date: The previous date as a datetime.date object.
+    """
+    # Check if the end_date month is not the current month
+    today_date = datetime.today().date()
+    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    if end_date.month != today_date.month:
+        # Return the day after today
+        pre_date =  today_date + timedelta(days=1)
+    else:
+        # Check if the given date is Sunday
+        if today_date.weekday() == 6:  # Sunday is represented by 6
+            # Subtract one day to get Saturday
+            pre_date =  today_date - timedelta(days=1)
+        else:
+            # Subtract one day to get the previous day
+            pre_date =  today_date - timedelta(days=1)
+    return pre_date.strftime('%Y-%m-%d')

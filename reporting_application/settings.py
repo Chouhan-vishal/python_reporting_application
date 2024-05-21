@@ -121,7 +121,7 @@ from datetime import timedelta
 
 # Access Token life 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15)
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=720)
 }
 PASSWORD_RESET_OTP_EXPIRY_MINUTES = 5
 # Password validation

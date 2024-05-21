@@ -5,7 +5,7 @@ from django.conf import settings
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, username, email, phone_number, hierarchy = None, first_name=None, last_name=None, password=None, is_admin=False, admin_user= None):
+    def create_user(self, username, email, phone_number, team_name, manager_name,  hierarchy = None, first_name=None, last_name=None, password=None, is_admin=False, admin_user= None):
         """
         Creates and saves a User with the given email, username, phone_number,
         first_name, last_name and password.
@@ -31,7 +31,9 @@ class UserManager(BaseUserManager):
             last_name=last_name,
             is_admin=is_admin,
             hierarchy=hierarchy,
-            admin_user = admin_user
+            admin_user = admin_user,
+            team_name = team_name,
+            manager_name=manager_name
         )
 
         user.set_password(password)

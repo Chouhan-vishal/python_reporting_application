@@ -13,10 +13,12 @@ from reporting_application.constants import *
 from .services.utils import generate_otp, send_otp_email
 from datetime import datetime, timedelta
 from django.utils.timezone import now as aware_utcnow
+from django.db.models import Q
+
 from rest_framework.views import APIView
 from rest_framework import status
 import pyotp
-from .serializers import UserSerializer, UserActivityLogSerializer, LoginSerializer, TwoFactorAuthenticationSerializer
+from .serializers import UserSerializer, UserActivityLogSerializer, LoginSerializer, TwoFactorAuthenticationSerializer,UserSearchSerializer
 from .models import (
     User,
     OTP,
@@ -70,8 +72,8 @@ class TwoFactorAuthenticationView(APIView):
                 user_mfa.is_enabled = True
                 user_mfa.secret_key = secret_key
                 user_mfa.save()
-            secret_key = user_mfa.secret_key
-            is_otp_valid = pyotp.TOTP(secret_key).verify(otp)
+            user_secret_key = user_mfa.secret_key
+            is_otp_valid = pyotp.TOTP(user_secret_key).verify(otp)
             if is_otp_valid:
                 token = AuthTokenService.get_token_for_user(user)
                 logger.info(f"Access token generated successfully for user with id {user.id}")
@@ -509,7 +511,6 @@ class ResetPassword(APIView):
     
 class ReportPermissions(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
-    
     @extend_schema(
         request=inline_serializer(
             name="AllowReportPermissionSerializer",
@@ -555,7 +556,6 @@ class ReportPermissions(APIView):
 
 
 class ReportLogs(APIView):
-    
     permission_classes = [IsAuthenticated, IsAdminUser]
     @extend_schema(
     responses= {HTTP_200_OK: {},
@@ -588,3 +588,42 @@ class ReportLogs(APIView):
         except Exception as e:
             logger.error(f'Error during report logs retrieval: {str(e)}')
             return response(FAILED, {ERROR: f'Error during report logs retrieval: {str(e)}'}, HTTP_400_BAD_REQUEST)   
+
+
+class UserSearch(APIView):
+    @extend_schema(
+    request=UserSearchSerializer,  
+    responses={HTTP_200_OK: {},
+            HTTP_400_BAD_REQUEST: {}
+    },
+    description="queried Users",
+     parameters=[
+        OpenApiParameter(
+                name='Authorization',
+                location= OpenApiParameter.HEADER,
+                description='Authorization Bearer token',
+                required=True,
+                type=OpenApiTypes.STR
+            ),
+    ]
+    )
+    def get(self, request):
+        try:
+            serializer = UserSearchSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            query = serializer.validated_data['query']
+            users = User.objects.filter(
+                Q(emp_code__icontains=query) |
+                Q(email__icontains=query) |
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(team_name__icontains=query) |
+                Q(manager_name__icontains=query) |
+                Q(phone_number__icontains=query)
+            )
+            serializer = UserSerializer(users, many=True)
+            return response(SUCCESS, serializer.data, HTTP_200_OK)
+        except Exception as e:
+            logger.error(f'Error during user search: {str(e)}')
+            return response(FAILED, {ERROR: f'Error during user search: {str(e)}'}, HTTP_400_BAD_REQUEST)

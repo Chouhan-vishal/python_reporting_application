@@ -10,6 +10,7 @@ urlpatterns = [
     re_path(r'^request-password-reset-otp/?$', views.ResetPasswordRequestOTP.as_view()),
     re_path(r'^verify-otp/?$', views.VerifyOTP.as_view()),
     re_path(r'^reset-password/?$', views.ResetPassword.as_view()),
+    re_path(r'^search/?$', views.UserSearch.as_view()),
     re_path(r'^profile/?$', views.Profile.as_view()),
     re_path(r'^(?P<user_id>\d+)/report_permissions/?$', views.ReportPermissions.as_view()),
     re_path(r'^report-logs/?$', views.ReportLogs.as_view()),

@@ -75,7 +75,7 @@ class User(AbstractBaseUser):
         blank=True
     )
     emp_code = models.CharField(
-        null=False,
+        null=True,
         verbose_name="employee code",
         max_length=255,
         unique=True,

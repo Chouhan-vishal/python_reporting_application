@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('sales_summary_report/', views.sales_summary_report),
-    path('sales_collection_outstanding_report/', views.sales_collection_outstanding_report),
+    path('sales-summary-report/', views.sales_summary_report),
+    path('sales-collection-outstanding-report/', views.sales_collection_outstanding_report),
+    path('product-wise-sales-summary/', views.product_wise_sales_summary)
 ]

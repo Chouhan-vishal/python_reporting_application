@@ -159,3 +159,61 @@ def sales_collection_outstanding_summary(start_date, end_date, pre_date):
         ORDER BY ST.[Team Name], ST.[Sales Person];
     """
     return query
+
+
+def product_wise_sales_summary_query(start_date, end_date, pre_date):
+    sql_query = f"""
+    WITH TargetCustomers AS (
+      SELECT   
+        [Item Category],
+        ROUND(SUM(CAST([Target Qty] AS Decimal(10,2))), 2) AS [Target Qty]
+      FROM [dbo].[tbl_TargetCustomers] WITH (NOLOCK)   
+      WHERE [Item Category] <> 'Welding Electrodes'
+      GROUP BY [Item Category]
+    ),
+    Sales AS (
+      SELECT          
+        IL.[Item Category] as [Item Category],
+        CAST(0 AS Decimal(10,2)) AS [Target Qty],
+        SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END) AS [Achv Qty] 
+      FROM (SELECT DISTINCT
+              [Item Details],
+              [Item Category] 
+            FROM dbo.tbl_ItemsList IL  WITH(Nolock)) IL   
+      INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(Nolock) 
+        ON IL.[Item Details] = SV.[Item Details]  
+      SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'  
+        AND SV.[Item Details] <> 'Welding Electrodes' 
+      GROUP BY IL.[Item Category]
+    ),
+    PreviousDateQty AS (
+      SELECT          
+        IL.[Item Category] as [Item Category],
+        CAST(0 AS Decimal(10,2)) AS [Target Qty],
+        SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END) AS [Achv Qty] 
+      FROM (SELECT DISTINCT
+              [Item Details],
+              [Item Category] 
+            FROM dbo.tbl_ItemsList IL  WITH(Nolock)) IL   
+      INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(Nolock) 
+        ON IL.[Item Details] = SV.[Item Details]  
+      WHERE 
+        CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'
+        AND SV.[Item Details] <> 'Welding Electrodes' 
+      GROUP BY IL.[Item Category]
+    )
+    SELECT 
+      TC.[Item Category],
+      TC.[Target Qty],
+      S.[Achv Qty],
+      PDQ.[Achv Qty] AS [Pre Day Sales],
+      CASE 
+        WHEN TC.[Target Qty] = 0 THEN 0
+        ELSE (S.[Achv Qty] / TC.[Target Qty]) * 100 
+      END AS [Achievement Percentage]
+    FROM TargetCustomers TC
+    LEFT JOIN Sales S ON TC.[Item Category] = S.[Item Category]
+    LEFT JOIN PreviousDateQty PDQ ON TC.[Item Category] = PDQ.[Item Category]
+    ORDER BY TC.[Item Category];
+    """
+    return sql_query

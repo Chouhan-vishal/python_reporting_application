@@ -4,7 +4,13 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from reports.services import report_services, report_queries
+from django.db import connection, DatabaseError
+from rest_framework.views import APIView
 from collections import defaultdict
+import logging
+
+
+logger = logging.getLogger('reports')
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -104,3 +110,36 @@ def sales_collection_outstanding_report(request):
     cursor.close()
     conn.close()
     return Response(team_sales_summary)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def product_wise_sales_summary(request):
+    start_date = request.data.get("start_date", None)
+    end_date = request.data.get("end_date", None)
+    if not start_date or not end_date:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    pre_date = report_services.get_previous_date(end_date)
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    query = report_queries.product_wise_sales_summary_query(start_date, end_date, pre_date)
+    cursor.execute(query)
+
+    results = cursor.fetchall()
+    with cursor() as cursor:
+            cursor.execute(query)
+            columns = [col[0] for col in cursor.description]
+            results = cursor.fetchall()
+
+    data = []
+    
+    for row in results:
+        record = dict(zip(columns, row))
+        # Handling Nulls
+        if record['Pre Day Sales'] is None:
+            record['Pre Day Sales'] = 0
+        if record['Achievement Percentage'] is None:
+            record['Achievement Percentage'] = 0
+        data.append(record)
+    
+    return Response(data)

@@ -55,7 +55,7 @@ def sales_summary_report(request):
 
 
 @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def sales_collection_outstanding_report(request):
     start_date = request.data.get("start_date", None)
     end_date = request.data.get("end_date", None)

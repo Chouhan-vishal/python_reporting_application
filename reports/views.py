@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from reports.services import report_services
+from reports.services import report_services, report_queries
 from collections import defaultdict
 
 @api_view(['GET'])
@@ -16,68 +16,7 @@ def sales_summary_report(request):
     pre_date = report_services.get_previous_date(end_date)
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
-    sql_query = f"""
-        WITH SalesTeamCTE AS (
-            SELECT   
-                ST.[Team Name],   
-                [Sales Person], 
-                CAST(GETDATE() AS DATE) AS [Date],
-                CAST(0 AS DECIMAL(10, 2)) AS [Target Qty],  
-                CAST(0 AS DECIMAL(10, 2)) AS [Achv Qty],
-                CAST(GETDATE() - 2 AS DATE) AS [Previous Date]
-            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
-        ),
-        TargetCustomers AS (
-            SELECT DISTINCT  
-                SV.[Team Name],    
-                [Sales Person],
-                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10, 2))), 2) AS [Target Qty], 
-                SV.[Date] 
-            FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)
-            WHERE [Item Category] <> 'Welding Electrodes'
-            GROUP BY 
-                SV.[Team Name],
-                [Sales Person],
-                SV.[Date]
-        ),
-        Sales AS (
-            SELECT      
-                ST.[Team Name],   
-                [Sales Person],
-                SUM([Qty(MTs)]) AS [Achv Qty], 
-                ST.[Previous Date]
-            FROM SalesTeamCTE ST
-            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
-                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
-                AND SV.[Item Details] <> 'Welding Electrodes'
-                AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
-            GROUP BY 
-                ST.[Team Name],    
-                [Sales Person],
-                ST.[Previous Date]
-        ),
-        PreviousDateQty AS (
-        SELECT
-            ST.[Team Name],
-            [Sales Person],
-            SUM([Qty(MTs)]) AS [Achv Qty]
-        FROM [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
-        INNER JOIN [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
-            ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
-        WHERE SV.[Item Details] <> 'Welding Electrodes'
-        AND CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'
-        GROUP BY ST.[Team Name], [Sales Person]
-        )
-        SELECT DISTINCT 
-            ST.[Team Name],
-            ST.[Sales Person],
-            ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],  
-            ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
-            ISNULL(ROUND(CAST(ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT) / NULLIF(CAST(ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
-            ISNULL((SELECT [Achv Qty] FROM PreviousDateQty WHERE PreviousDateQty.[Team Name] = ST.[Team Name] AND PreviousDateQty.[Sales Person] = ST.[Sales Person]), 0) AS [Previous Date Qty]
-        FROM SalesTeamCTE ST
-        ORDER BY ST.[Team Name], ST.[Sales Person];
-    """
+    sql_query = report_queries.sales_summary_query(start_date, end_date, pre_date)
     # Assuming you execute the query with the provided start_date and end_date values
     cursor.execute(sql_query)
     results = cursor.fetchall()
@@ -110,4 +49,58 @@ def sales_summary_report(request):
         if team_target_qty != 0:
             team_summary['team_achieved%'] = round((team_sales_qty / team_target_qty) * 100, 2)
     response_data = {"team_sales_summary": dict(team_sales_summary)}
+    cursor.close()
+    conn.close()
     return Response(response_data)
+
+
+@api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+def sales_collection_outstanding_report(request):
+    start_date = request.data.get("start_date", None)
+    end_date = request.data.get("end_date", None)
+    if not start_date or not end_date:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    pre_date = report_services.get_previous_date(end_date)
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    query = report_queries.sales_collection_outstanding_summary(start_date, end_date, pre_date)
+    cursor.execute(query)
+
+    results = cursor.fetchall()
+    team_sales_summary = {}
+    team_sales_summary = defaultdict(lambda: {
+        'Team Pre Day Sales(MTs)': 0,
+        'Team Pre Day Collection': 0,
+        'Team Overall Outstanding Amt': 0,
+        'Team Above 25 Days O/S': 0,
+        'Team Above 45 Days O/S': 0,
+        'Team Above 90 Days O/S': 0,
+        'Team sales persons': []
+    })
+    for row in results:
+        team_name = row[0]
+        sales_person = row[1]
+        sales_summary = {
+            'Sales Person': sales_person,
+            'Pre Day Sales(MTs)': row[2],
+            'Pre Day Collection': row[3],
+            'Overall Outstanding Amt': row[4],
+            'Team Above 25 Days O/S':row[5],
+            'Team Above 45 Days O/S': row[6],
+            'Team Above 90 Days O/S': row[7]
+        }
+        # Update team summary values
+        team_sales_summary[team_name]['Team Pre Day Sales(MTs)'] += row[2]
+        team_sales_summary[team_name]['Team Pre Day Collection'] += row[3]
+        team_sales_summary[team_name]['Team Overall Outstanding Amt'] += row[4]
+        team_sales_summary[team_name]['Team Above 25 Days O/S'] += row[5]
+        team_sales_summary[team_name]['Team Above 45 Days O/S'] += row[6]
+        team_sales_summary[team_name]['Team Above 90 Days O/S'] += row[7]
+
+        # Append sales person summary to the team
+        team_sales_summary[team_name]['Team sales persons'].append(sales_summary)
+    team_sales_summary = dict(team_sales_summary)
+    cursor.close()
+    conn.close()
+    return Response(team_sales_summary)

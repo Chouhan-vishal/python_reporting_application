@@ -126,13 +126,9 @@ def product_wise_sales_summary(request):
     cursor.execute(query)
 
     results = cursor.fetchall()
-    with cursor() as cursor:
-            cursor.execute(query)
-            columns = [col[0] for col in cursor.description]
-            results = cursor.fetchall()
+    columns = [col[0] for col in cursor.description]
 
     data = []
-    
     for row in results:
         record = dict(zip(columns, row))
         # Handling Nulls
@@ -141,5 +137,5 @@ def product_wise_sales_summary(request):
         if record['Achievement Percentage'] is None:
             record['Achievement Percentage'] = 0
         data.append(record)
-    
-    return Response(data)
+    final_response = {"Product wise sales": data}
+    return Response(final_response)

@@ -182,7 +182,7 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date):
             FROM dbo.tbl_ItemsList IL  WITH(Nolock)) IL   
       INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(Nolock) 
         ON IL.[Item Details] = SV.[Item Details]  
-      SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'  
+      Where SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'  
         AND SV.[Item Details] <> 'Welding Electrodes' 
       GROUP BY IL.[Item Category]
     ),

@@ -8,6 +8,7 @@ from django.db import connection, DatabaseError
 from rest_framework.views import APIView
 from collections import defaultdict
 import logging
+from datetime import datetime, timedelta
 
 
 logger = logging.getLogger('reports')
@@ -166,27 +167,27 @@ def weekly_summary(request):
     })
     # Process query results
     for row in results:
-        team_name = row[0]
-        salesman = row[1]
+        team_name = row[3]
+        salesman = row[4]
         sales_summary = {
             'Salesman': salesman,
-            'Target Qty(MTs)': row[2],
-            'Achvd Qty(MTs)': row[3],
-            'Pending Target': row[4],
-            'Weekly Target': row[5],
-            'Collection Target': row[6],
-            'Collection Achived': row[7],
-            'Weekly Achved Qty(MTs)': row[8]
+            'Target Qty(MTs)': row[5],
+            'Achvd Qty(MTs)': row[6],
+            'Pending Target': row[8],
+            'Weekly Target': row[10],
+            'Collection Target': row[11],
+            'Collection Achived': row[12],
+            'Weekly Achved Qty(MTs)': row[13]
         }
         
         # Update team summary values
-        team_sales_summary[team_name]['Target Qty(MTs)'] += row[2]
-        team_sales_summary[team_name]['Achvd Qty(MTs)'] += row[3]
-        team_sales_summary[team_name]['Pending Target'] += row[4]
-        team_sales_summary[team_name]['Weekly Target'] += row[5]
-        team_sales_summary[team_name]['Collection Target'] += row[6]
-        team_sales_summary[team_name]['Collection Achived'] += row[7]
-        team_sales_summary[team_name]['Weekly Achved Qty(MTs)'] += row[8]
+        team_sales_summary[team_name]['Target Qty(MTs)'] += row[5]
+        team_sales_summary[team_name]['Achvd Qty(MTs)'] += row[6]
+        team_sales_summary[team_name]['Pending Target'] += row[8]
+        team_sales_summary[team_name]['Weekly Target'] += row[10]
+        team_sales_summary[team_name]['Collection Target'] += row[11]
+        team_sales_summary[team_name]['Collection Achived'] += row[12]
+        team_sales_summary[team_name]['Weekly Achved Qty(MTs)'] += row[13]
         
         # Append salesmen summary to the team
         team_sales_summary[team_name]['Salesmen'].append(sales_summary)
@@ -198,3 +199,35 @@ def weekly_summary(request):
     # Convert defaultdict to regular dictionary
     team_sales_summary = dict(team_sales_summary)
     return Response(team_sales_summary)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def collection_report(request):
+    start_date_str = request.data.get("start_date")
+    end_date_str = request.data.get("end_date")
+    
+    if not start_date_str or not end_date_str:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+    
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    team_totals = {}
+    
+    current_date = start_date
+    while current_date <= end_date: 
+        query = report_queries.collection_report_by_date_range(current_date)
+        cursor.execute(query)
+        data = cursor.fetchall()
+        
+        for row in data:
+            team_name, total_collection = row
+            receipt_date = current_date.strftime('%Y-%m-%d')
+            team_totals.setdefault(team_name, {}).update({receipt_date: total_collection})
+        current_date += timedelta(days=1)
+    
+    conn.close()
+    
+    return Response(team_totals)

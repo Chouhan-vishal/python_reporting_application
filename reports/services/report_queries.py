@@ -81,7 +81,7 @@ def sales_collection_outstanding_summary(start_date, end_date, pre_date):
             INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
                 ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
             WHERE 
-                SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
+                SV.[Voucher Date] = '{pre_date}'
                 AND SV.[Item Details] <> 'Welding Electrodes'
             GROUP BY 
                 ST.[Team Name],
@@ -257,6 +257,33 @@ def weekly_report_query(start_date, end_date):
             WHERE [Item Category] <> 'Welding Electrodes'
             GROUP BY SV.[Team Name], SV.[Sales Person]
         ),
+        Sales AS (
+            SELECT
+                ST.[Team Name],   
+                ST.[Sales Person],
+                SUM([Qty(MTs)]) AS [Achv Qty]
+            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK) 
+            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
+                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person])) 
+            WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE()) 
+                AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE()) 
+                AND SV.[Item Details] <> 'Welding Electrodes'
+            GROUP BY ST.[Team Name], ST.[Sales Person]
+        ),
+        WeeklySales AS (
+            SELECT
+                ST.[Team Name],   
+                ST.[Sales Person],
+                SUM([Qty(MTs)]) AS [Weekly Achvd Qty]
+            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK) 
+            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
+                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person])) 
+            WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE()) 
+                AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE()) 
+                AND SV.[Item Details] <> 'Welding Electrodes'
+                AND CAST(SV.[Voucher Date] AS DATE) BETWEEN @WeekStartDayMonday AND @WeekEndDaySaturday
+            GROUP BY ST.[Team Name], ST.[Sales Person]
+        ),
         CollectionAmount AS (
             SELECT
                 ST.[Team Name],  
@@ -282,37 +309,43 @@ def weekly_report_query(start_date, end_date):
             )
             GROUP BY ST.[Sales Person]
         )
-        SELECT 
+        SELECT DISTINCT 
+            CAST(GETDATE() AS DATE) AS [Sales Date],
+            DATENAME(MONTH, GETDATE()) AS [Month],
+            YEAR(GETDATE()) AS [Year],
             ST.[Team Name] AS [Team],
-            ST.[Sales Person] AS [Salesman],
-            COALESCE(TC.[Target Qty], 0) AS [Target Qty(MTs)],
-            COALESCE(S.[Weekly Achv Qty], 0) AS [Achvd Qty(MTs)],
-            CAST(COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Weekly Achv Qty], 0) AS DECIMAL(12,2)) AS [Pending Target],
-            CAST(((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Weekly Achv Qty], 0)) / @Workingdays) * 6 AS DECIMAL(12,2)) AS [Weekly Target],
+            ST.[Sales Person] AS [Sales Men], 
+            COALESCE(TC.[Target Qty], 0) AS [Sales Target],
+            COALESCE(S.[Achv Qty], 0) AS [Achv],
+            ISNULL(ROUND(CAST(COALESCE(S.[Achv Qty], 0) AS FLOAT) / NULLIF(CAST(COALESCE(TC.[Target Qty], 0) AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
+            CAST(COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0) AS DECIMAL(12,2)) AS [Pending Target],
+            CAST((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / @Workingdays AS DECIMAL(12,2)) AS [Daily Target],
+            CAST(((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / @Workingdays) * 6 AS DECIMAL(12,2)) AS [Weekly Target],
             COALESCE(O.[Above 25 Days Outstanding], 0) AS [Collection Target],
-            COALESCE(CA.[Collection Amount], 0) AS [Collection Achived],
-            COALESCE(S.[Weekly Achv Qty], 0) AS [Weekly Achieved Qty]
+            COALESCE(CA.[Collection Amount], 0) AS [Collection Achv],
+            COALESCE(WS.[Weekly Achvd Qty], 0) AS [Weekly Achved Qty(MTs)]
+           
         FROM SalesTeam ST
         LEFT JOIN TargetCustomers TC ON ST.[Sales Person] = TC.[Sales Person]
-        LEFT JOIN (
-            SELECT
-                ST.[Team Name],   
-                ST.[Sales Person],
-                SUM(CASE 
-                    WHEN SV.[Voucher Date] BETWEEN @WeekStartDayMonday AND @WeekEndDaySaturday THEN [Qty(MTs)] 
-                    ELSE 0 
-                END) AS [Weekly Achv Qty]
-            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK) 
-            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
-                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person])) 
-            WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE()) 
-                AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE()) 
-                AND SV.[Item Details] <> 'Welding Electrodes'
-            GROUP BY ST.[Team Name], ST.[Sales Person]
-        ) S ON ST.[Sales Person] = S.[Sales Person] AND ST.[Team Name] = S.[Team Name]
+        LEFT JOIN Sales S ON ST.[Sales Person] = S.[Sales Person] AND ST.[Team Name] = S.[Team Name]
         LEFT JOIN CollectionAmount CA ON ST.[Sales Person] = CA.[Sales Person]
         LEFT JOIN Outstandings O ON ST.[Sales Person] = O.[Sales Person]
+        LEFT JOIN WeeklySales WS ON ST.[Sales Person] = WS.[Sales Person] AND ST.[Team Name] = WS.[Team Name]
+
         WHERE ST.[Team Name] IS NOT NULL
-        ORDER BY ST.[Team Name], ST.[Sales Person];
+        ORDER BY 1;
+
         """
+    return sql_query
+
+def collection_report_by_date_range(date):
+
+    sql_query = f"""
+        SELECT st.[Team Name],
+            SUM(rr.[Credit Amount]) AS TotalCreditAmount
+        FROM tbl_SalesTeam st
+        JOIN tbl_ReceiptRegister rr ON st.[Sales Person] = rr.[Sales Person -2]
+        WHERE rr.[Receipt Date] = '{date}'
+        GROUP BY st.[Team Name];
+    """
     return sql_query

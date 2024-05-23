@@ -65,7 +65,7 @@ def sales_summary_query(start_date, end_date, pre_date):
 
 
 def sales_collection_outstanding_summary(start_date, end_date, pre_date):
-    query = f"""
+    sql_query = f"""
        WITH SalesTeam AS (
             SELECT DISTINCT  
                 ST.[Team Name],   
@@ -158,7 +158,7 @@ def sales_collection_outstanding_summary(start_date, end_date, pre_date):
         WHERE ST.[Team Name] IS NOT NULL
         ORDER BY ST.[Team Name], ST.[Sales Person];
     """
-    return query
+    return sql_query
 
 
 def product_wise_sales_summary_query(start_date, end_date, pre_date):
@@ -216,4 +216,103 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date):
     LEFT JOIN PreviousDateQty PDQ ON TC.[Item Category] = PDQ.[Item Category]
     ORDER BY TC.[Item Category];
     """
+    return sql_query
+
+def weekly_report_query(start_date, end_date):
+    sql_query = """
+        DECLARE @WeekStartDayMonday DATE, @WeekEndDaySaturday DATE;
+
+        SELECT  
+            @WeekStartDayMonday = CAST(DATEADD(wk, DATEDIFF(wk, 0, GETDATE()), 0) AS DATE),   
+            @WeekEndDaySaturday = CAST(DATEADD(WEEK, 1, DATEADD(DAY, -1 * DATEPART(weekday, GETDATE()), GETDATE())) AS DATE);
+
+        -- Working days count in the current month
+        DECLARE @Workingdays INT;
+        SELECT @Workingdays = COUNT([CalendarDate])
+        FROM [dbo].[tbl_Calendar] WITH (NOLOCK)
+        WHERE [HolidayFlag] <> 'Y' 
+            AND YEAR([CalendarDate]) = YEAR(GETDATE())
+            AND MONTH([CalendarDate]) = MONTH(GETDATE())
+            AND CAST([CalendarDate] AS DATE) > CAST(GETDATE() AS DATE);
+
+        -- CTEs for various calculations
+        WITH SalesTeam AS (
+            SELECT DISTINCT
+                ST.[Team Name],   
+                [Sales Person],
+                CAST(0 AS DECIMAL(12,2)) AS [Target Qty],
+                CAST(0 AS DECIMAL(12,2)) AS [Achv Qty],
+                CAST(0 AS DECIMAL(12,2)) AS [Collection Target],
+                CAST(0 AS DECIMAL(12,2)) AS [Collection Achv],
+                CAST(0 AS DECIMAL(12,2)) AS [Pending Target],
+                CAST(0 AS DECIMAL(12,2)) AS [Daily Target]
+            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
+        ),
+        TargetCustomers AS (
+            SELECT 
+                SV.[Team Name],  
+                SV.[Sales Person], 
+                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10,2))), 2) AS [Target Qty]
+            FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)  
+            WHERE [Item Category] <> 'Welding Electrodes'
+            GROUP BY SV.[Team Name], SV.[Sales Person]
+        ),
+        CollectionAmount AS (
+            SELECT
+                ST.[Team Name],  
+                ST.[Sales Person],
+                SUM(RR.[Credit Amount]) AS [Collection Amount]
+            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)  
+            INNER JOIN [dbo].[tbl_ReceiptRegister] RR WITH (NOLOCK) 
+                ON LTRIM(RTRIM(RR.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))  
+            WHERE CAST(RR.[Receipt Date] AS DATE) BETWEEN @WeekStartDayMonday AND @WeekEndDaySaturday
+            GROUP BY ST.[Team Name], ST.[Sales Person]
+        ),
+        Outstandings AS (
+            SELECT
+                ST.[Sales Person],
+                SUM(OS.[Pending Amount]) AS [Total Outstanding],
+                SUM(CASE WHEN OS.Ageing > 25 THEN OS.[Pending Amount] END) AS [Above 25 Days Outstanding]
+            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)  
+            INNER JOIN [dbo].[tbl_OutStandings] OS WITH (NOLOCK) 
+                ON LTRIM(RTRIM(OS.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))  
+            WHERE CAST(OS.[Created Date] AS DATE) = (
+                SELECT MAX(CAST([Created Date] AS DATE))
+                FROM [dbo].[tbl_OutStandings] OS WITH (NOLOCK)
+            )
+            GROUP BY ST.[Sales Person]
+        )
+        SELECT 
+            ST.[Team Name] AS [Team],
+            ST.[Sales Person] AS [Salesman],
+            COALESCE(TC.[Target Qty], 0) AS [Target Qty(MTs)],
+            COALESCE(S.[Weekly Achv Qty], 0) AS [Achvd Qty(MTs)],
+            CAST(COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Weekly Achv Qty], 0) AS DECIMAL(12,2)) AS [Pending Target],
+            CAST(((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Weekly Achv Qty], 0)) / @Workingdays) * 6 AS DECIMAL(12,2)) AS [Weekly Target],
+            COALESCE(O.[Above 25 Days Outstanding], 0) AS [Collection Target],
+            COALESCE(CA.[Collection Amount], 0) AS [Collection Achived],
+            COALESCE(S.[Weekly Achv Qty], 0) AS [Weekly Achieved Qty]
+        FROM SalesTeam ST
+        LEFT JOIN TargetCustomers TC ON ST.[Sales Person] = TC.[Sales Person]
+        LEFT JOIN (
+            SELECT
+                ST.[Team Name],   
+                ST.[Sales Person],
+                SUM(CASE 
+                    WHEN SV.[Voucher Date] BETWEEN @WeekStartDayMonday AND @WeekEndDaySaturday THEN [Qty(MTs)] 
+                    ELSE 0 
+                END) AS [Weekly Achv Qty]
+            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK) 
+            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
+                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person])) 
+            WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE()) 
+                AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE()) 
+                AND SV.[Item Details] <> 'Welding Electrodes'
+            GROUP BY ST.[Team Name], ST.[Sales Person]
+        ) S ON ST.[Sales Person] = S.[Sales Person] AND ST.[Team Name] = S.[Team Name]
+        LEFT JOIN CollectionAmount CA ON ST.[Sales Person] = CA.[Sales Person]
+        LEFT JOIN Outstandings O ON ST.[Sales Person] = O.[Sales Person]
+        WHERE ST.[Team Name] IS NOT NULL
+        ORDER BY ST.[Team Name], ST.[Sales Person];
+        """
     return sql_query

@@ -139,3 +139,62 @@ def product_wise_sales_summary(request):
         data.append(record)
     final_response = {"Product wise sales": data}
     return Response(final_response)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def weekly_summary(request):
+    start_date = request.data.get("start_date", None)
+    end_date = request.data.get("end_date", None)
+    if not start_date or not end_date:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    query = report_queries.weekly_report_query(start_date, end_date)
+    cursor.execute(query)
+    results = cursor.fetchall()
+
+    team_sales_summary = defaultdict(lambda: {
+    'Target Qty(MTs)': 0,
+    'Achvd Qty(MTs)': 0,
+    'Pending Target': 0,
+    'Weekly Target': 0,
+    'Collection Target': 0,
+    'Collection Achived': 0,
+    'Salesmen': [],
+    'Weekly Achved Qty(MTs)': 0
+    })
+    # Process query results
+    for row in results:
+        team_name = row[0]
+        salesman = row[1]
+        sales_summary = {
+            'Salesman': salesman,
+            'Target Qty(MTs)': row[2],
+            'Achvd Qty(MTs)': row[3],
+            'Pending Target': row[4],
+            'Weekly Target': row[5],
+            'Collection Target': row[6],
+            'Collection Achived': row[7],
+            'Weekly Achved Qty(MTs)': row[8]
+        }
+        
+        # Update team summary values
+        team_sales_summary[team_name]['Target Qty(MTs)'] += row[2]
+        team_sales_summary[team_name]['Achvd Qty(MTs)'] += row[3]
+        team_sales_summary[team_name]['Pending Target'] += row[4]
+        team_sales_summary[team_name]['Weekly Target'] += row[5]
+        team_sales_summary[team_name]['Collection Target'] += row[6]
+        team_sales_summary[team_name]['Collection Achived'] += row[7]
+        team_sales_summary[team_name]['Weekly Achved Qty(MTs)'] += row[8]
+        
+        # Append salesmen summary to the team
+        team_sales_summary[team_name]['Salesmen'].append(sales_summary)
+
+    # Close cursor and connection
+    cursor.close()
+    conn.close()
+
+    # Convert defaultdict to regular dictionary
+    team_sales_summary = dict(team_sales_summary)
+    return Response(team_sales_summary)

@@ -7,4 +7,6 @@ urlpatterns = [
     path('product-wise-sales-summary/', views.product_wise_sales_summary),
     path('weekly-summary/', views.weekly_summary),
     path('collection-report/', views.collection_report),
+    path('customer-wise-outstanding/', views.customer_wise_outstanding),
+    
 ]

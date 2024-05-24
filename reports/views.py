@@ -280,3 +280,34 @@ def customer_wise_outstanding(request):
     conn.close()
     # Return response with fetched data and total outstanding sum
     return Response({f"Customer wise {outstanding_value} Days O/S":formatted_data,"total_outstanding_sum": total_outstanding_sum})
+
+
+@api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+def cr_utilization_report(request):
+    import pdb
+    from django.http import JsonResponse  # Assuming you're using Django
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    sql_query = report_queries.cr_utilization_report_query()
+    cursor.execute(sql_query)
+
+    # Fetch data
+    data = cursor.fetchall()
+    
+    # Format data
+    query_data = []
+    for row in data:
+        formatted_row = {
+            'Team Name': row[0],
+            'Sales Person': row[1],
+            'Customer ID': row[3],
+            'Customer Name': row[2],
+            'Target Qty (MTs)': row[4],
+            'CR limit': row[5],
+            'OS': row[6],
+            'Cr Utliz %': row[7]
+        }
+        query_data.append(formatted_row)
+    
+    return JsonResponse({"cr_utilization_report": query_data})

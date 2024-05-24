@@ -383,3 +383,46 @@ def customer_wise_outstanding_query(outstanding_value):
         OS.Ageing;
         """
     return sql_query
+
+
+def cr_utilization_report_query():
+        sql_query = """
+            SELECT 
+                t1."Team Name", 
+                t1."Sales Person", 
+                t1."Customer Name", 
+                t1."Customer ID", 
+                SUM(CONVERT(FLOAT, t1."Target Qty")) AS "Total Target Qty", 
+                SUM(CONVERT(FLOAT, t1."Target Qty") * 92000) AS "CR Limit",
+                ISNULL(SUM_OUTSTANDING.[All Outstanding], 0) AS "All Outstanding",
+                CASE 
+                    WHEN SUM(CONVERT(FLOAT, t1."Target Qty") * 92000) = 0 THEN 0  -- Handle division by zero
+                    ELSE (CAST(ISNULL(SUM_OUTSTANDING.[All Outstanding], 0) AS FLOAT) / (SUM(CONVERT(FLOAT, t1."Target Qty") * 92000)) * 100) 
+                END AS "CR %"
+            FROM 
+                tbl_TargetCustomers t1
+            LEFT JOIN 
+                (
+                SELECT 
+                    OS.[Customer Name], 
+                    SUM(CASE WHEN OS.Ageing > 0 THEN OS.[Pending Amount] ELSE 0 END) AS [All Outstanding]
+                FROM 
+                    [dbo].[tbl_OutStandings] OS
+                INNER JOIN 
+                    [dbo].[tbl_SalesTeam] ST ON LTRIM(RTRIM(OS.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
+                WHERE 
+                    CAST(OS.[Created Date] AS DATE) = (SELECT MAX(CAST([Created Date] AS DATE)) FROM [dbo].[tbl_OutStandings] OS2)
+                GROUP BY 
+                    OS.[Customer Name]
+                HAVING 
+                    SUM(CASE WHEN OS.Ageing > 0 THEN OS.[Pending Amount] ELSE 0 END) > 0
+                ) AS SUM_OUTSTANDING ON t1."Customer Name" = SUM_OUTSTANDING.[Customer Name]
+            WHERE 
+                t1."Item Category" <> 'Welding Electrodes'
+            GROUP BY 
+                t1."Team Name", t1."Sales Person", t1."Customer Name", t1."Customer ID", SUM_OUTSTANDING.[All Outstanding] -- Include "All Outstanding" in the GROUP BY clause
+            ORDER BY 
+                t1."Team Name", t1."Sales Person", t1."Customer Name", t1."Customer ID";
+
+            """
+        return sql_query

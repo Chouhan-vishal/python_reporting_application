@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger('reports')
 
-@api_view(['GET'])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def sales_summary_report(request):
     start_date = request.data.get("start_date", None)
@@ -61,7 +61,7 @@ def sales_summary_report(request):
     return Response(response_data)
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def sales_collection_outstanding_report(request):
     start_date = request.data.get("start_date", None)
@@ -113,7 +113,7 @@ def sales_collection_outstanding_report(request):
     return Response(team_sales_summary)
 
 
-@api_view(["GET"])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def product_wise_sales_summary(request):
     start_date = request.data.get("start_date", None)
@@ -142,7 +142,7 @@ def product_wise_sales_summary(request):
     return Response(final_response)
 
 
-@api_view(["GET"])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def weekly_summary(request):
     start_date = request.data.get("start_date", None)
@@ -200,7 +200,7 @@ def weekly_summary(request):
     team_sales_summary = dict(team_sales_summary)
     return Response(team_sales_summary)
 
-@api_view(["GET"])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def collection_report(request):
     start_date_str = request.data.get("start_date")
@@ -244,7 +244,7 @@ def collection_report(request):
     
     return Response(team_totals)
 
-@api_view(["GET"])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def customer_wise_outstanding(request):
 

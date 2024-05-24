@@ -217,17 +217,66 @@ def collection_report(request):
     team_totals = {}
     
     current_date = start_date
-    while current_date <= end_date: 
+    while current_date <= end_date:
         query = report_queries.collection_report_by_date_range(current_date)
         cursor.execute(query)
         data = cursor.fetchall()
         
         for row in data:
-            team_name, total_collection = row
+            team_name, sales_person, total_collection = row
             receipt_date = current_date.strftime('%Y-%m-%d')
-            team_totals.setdefault(team_name, {}).update({receipt_date: total_collection})
+            
+            if team_name not in team_totals:
+                team_totals[team_name] = {}
+            
+            if receipt_date not in team_totals[team_name]:
+                team_totals[team_name][receipt_date] = {
+                    "TotalCollection": 0,
+                    "IndividualSales": {}
+                }
+                
+            team_totals[team_name][receipt_date]["TotalCollection"] += total_collection
+            team_totals[team_name][receipt_date]["IndividualSales"][sales_person] = total_collection
+            
         current_date += timedelta(days=1)
     
     conn.close()
     
     return Response(team_totals)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def customer_wise_outstanding(request):
+
+    outstanding_value = request.data.get("outstanding")
+    outstanding_days = [0, 25, 45, 90]
+    if outstanding_value not in outstanding_days:
+        return Response({"error": "Please provide valid outstanding day value"}, status=400)
+    # Define the raw SQL query
+
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    sql_query = report_queries.customer_wise_outstanding_query(outstanding_value)
+    cursor.execute(sql_query)
+
+    # Fetch data
+    data = cursor.fetchall()
+    formatted_data = []
+    for row in data:
+        formatted_row = {
+            "Branch Name": row[0],
+            "Bill NO": row[1],
+            "Customer Name": row[2],
+            "Ageing": row[3],
+            "Outstanding Amount": row[4]
+        }
+        formatted_data.append(formatted_row)
+
+    # Calculate total outstanding sum
+    total_outstanding_sum = sum(row[4] for row in data)
+
+    # Close cursor and connection
+    cursor.close()
+    conn.close()
+    # Return response with fetched data and total outstanding sum
+    return Response({f"Customer wise {outstanding_value} Days O/S":formatted_data,"total_outstanding_sum": total_outstanding_sum})

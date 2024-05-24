@@ -342,10 +342,44 @@ def collection_report_by_date_range(date):
 
     sql_query = f"""
         SELECT st.[Team Name],
-            SUM(rr.[Credit Amount]) AS TotalCreditAmount
+            st.[Sales Person],
+        SUM(rr.[Credit Amount]) AS TotalCreditAmount
         FROM tbl_SalesTeam st
         JOIN tbl_ReceiptRegister rr ON st.[Sales Person] = rr.[Sales Person -2]
         WHERE rr.[Receipt Date] = '{date}'
-        GROUP BY st.[Team Name];
+        GROUP BY st.[Team Name],
+        st.[Sales Person]
+        ORDER by 1;
     """
+    return sql_query
+
+
+def customer_wise_outstanding_query(outstanding_value):
+    sql_query = f"""
+        SELECT  
+            OS.[Branch Name],
+            OS.[Bill NO],
+            OS.[Customer Name],
+            OS.Ageing,
+            SUM(CASE WHEN OS.Ageing > {outstanding_value} THEN OS.[Pending Amount] ELSE 0 END) AS [Above {outstanding_value} Days Outstanding]
+        FROM [dbo].[tbl_OutStandings] OS
+        INNER JOIN [dbo].[tbl_SalesTeam] ST 
+            ON LTRIM(RTRIM(OS.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
+        WHERE 
+            CAST(OS.[Created Date] AS DATE) = (
+                SELECT MAX(CAST([Created Date] AS DATE)) 
+                FROM [dbo].[tbl_OutStandings] OS2
+            )
+        GROUP BY 
+            OS.[Branch Name],
+            OS.[Bill NO],
+            OS.[Customer Name],
+            OS.Ageing
+        HAVING 
+            SUM(CASE WHEN OS.Ageing > {outstanding_value} THEN OS.[Pending Amount] ELSE 0 END) > 0
+        ORDER BY OS.[Branch Name],
+        OS.[Bill NO], 
+        OS.[Customer Name], 
+        OS.Ageing;
+        """
     return sql_query

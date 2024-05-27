@@ -147,6 +147,7 @@ def product_wise_sales_summary(request):
 def weekly_summary(request):
     start_date = request.data.get("start_date", None)
     end_date = request.data.get("end_date", None)
+    today_is_monday = datetime.today().weekday() == 0
     if not start_date or not end_date:
         return Response({"error": "Please provide both start_date and end_date."}, status=400)
     conn = report_services.create_sql_server_connection()
@@ -167,6 +168,7 @@ def weekly_summary(request):
     })
     # Process query results
     for row in results:
+        weekly_target = row[8] if today_is_monday else row[10]
         team_name = row[3]
         salesman = row[4]
         sales_summary = {
@@ -174,7 +176,7 @@ def weekly_summary(request):
             'Target Qty(MTs)': row[5],
             'Achvd Qty(MTs)': row[6],
             'Pending Target': row[8],
-            'Weekly Target': row[10],
+            'Weekly Target': weekly_target,
             'Collection Target': row[11],
             'Collection Achived': row[12],
             'Weekly Achved Qty(MTs)': row[13]
@@ -184,7 +186,7 @@ def weekly_summary(request):
         team_sales_summary[team_name]['Target Qty(MTs)'] += row[5]
         team_sales_summary[team_name]['Achvd Qty(MTs)'] += row[6]
         team_sales_summary[team_name]['Pending Target'] += row[8]
-        team_sales_summary[team_name]['Weekly Target'] += row[10]
+        team_sales_summary[team_name]['Weekly Target'] += weekly_target
         team_sales_summary[team_name]['Collection Target'] += row[11]
         team_sales_summary[team_name]['Collection Achived'] += row[12]
         team_sales_summary[team_name]['Weekly Achved Qty(MTs)'] += row[13]
@@ -321,3 +323,31 @@ def cr_utilization_report(request):
             })
     
     return Response({"cr_utilization_report": formatted_data})
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def team_and_product_wise_report(request):
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    sql_query = report_queries.team_and_product_wise_query()
+    cursor.execute(sql_query)
+
+    # Fetching all the rows
+    rows = cursor.fetchall()
+
+    # Closing the cursor and connection
+    cursor.close()
+    conn.close()
+
+    # Organizing data by product cluster
+    data_by_cluster = {}
+    for row in rows:
+        team_name, product_cluster, target_qty, achv_qty, achv_percent = row
+        if product_cluster not in data_by_cluster:
+            data_by_cluster[product_cluster] = {}
+        data_by_cluster[product_cluster][team_name] = {
+            'Target Qty': target_qty,
+            'Achv Qty': achv_qty,
+            'Achv %': achv_percent
+        }
+    return Response({"Team wise product wise report": data_by_cluster})

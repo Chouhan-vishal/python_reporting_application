@@ -280,3 +280,44 @@ def customer_wise_outstanding(request):
     conn.close()
     # Return response with fetched data and total outstanding sum
     return Response({f"Customer wise {outstanding_value} Days O/S":formatted_data,"total_outstanding_sum": total_outstanding_sum})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def cr_utilization_report(request):
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    sql_query = report_queries.cr_utilization_report_query()
+    cursor.execute(sql_query)
+
+    # Fetch data
+    data = cursor.fetchall()
+    
+    # Initialize a nested dictionary to hold the grouped data
+    grouped_data = defaultdict(lambda: defaultdict(list))
+
+    # Organize data by team name and sales person
+    for row in data:
+        team_name = row[0]
+        sales_person = row[1]
+        customer_data = {
+            'Customer ID': row[3],
+            'Customer Name': row[2],
+            'Target Qty (MTs)': row[4],
+            'CR limit': row[5],
+            'OS': row[6],
+            'Cr Utliz %': row[7]
+        }
+        grouped_data[team_name][sales_person].append(customer_data)
+    
+    # Format the grouped data into the desired structure
+    formatted_data = []
+    for team_name, sales_persons in grouped_data.items():
+        for sales_person, customers in sales_persons.items():
+            formatted_data.append({
+                'Team Name': team_name,
+                'Sales Person': sales_person,
+                'Customers': customers
+            })
+    
+    return Response({"cr_utilization_report": formatted_data})

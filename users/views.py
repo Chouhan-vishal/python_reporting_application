@@ -294,7 +294,7 @@ class Users(APIView):
 
 
 class Profile(APIView):
-    permission_classes = [IsAdminUser, IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(
     request=UserSerializer,  

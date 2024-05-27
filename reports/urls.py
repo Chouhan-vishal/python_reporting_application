@@ -8,5 +8,5 @@ urlpatterns = [
     path('weekly-summary/', views.weekly_summary),
     path('collection-report/', views.collection_report),
     path('customer-wise-outstanding/', views.customer_wise_outstanding),
-    
+    path('cr-utilization-report/', views.cr_utilization_report),
 ]

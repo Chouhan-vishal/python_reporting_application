@@ -10,4 +10,5 @@ urlpatterns = [
     path('customer-wise-outstanding-report/', views.customer_wise_outstanding),
     path('cr-utilization-report/', views.cr_utilization_report),
     path('team-and-product-wise-report/', views.team_and_product_wise_report),
+    path('salesman-and-product-wise-report/', views.salesman_and_product_wise_report),
 ]

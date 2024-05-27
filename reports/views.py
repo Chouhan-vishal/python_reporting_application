@@ -139,6 +139,10 @@ def product_wise_sales_summary(request):
             record['Achievement Percentage'] = 0
         data.append(record)
     final_response = {"Product wise sales": data}
+
+    # Closing the cursor and connection
+    cursor.close()
+    conn.close()
     return Response(final_response)
 
 
@@ -242,6 +246,9 @@ def collection_report(request):
             
         current_date += timedelta(days=1)
     
+    
+    # Closing the cursor and connection
+    cursor.close()
     conn.close()
     
     return Response(team_totals)
@@ -322,6 +329,9 @@ def cr_utilization_report(request):
                 'Customers': customers
             })
     
+    # Closing the cursor and connection
+    cursor.close()
+    conn.close()
     return Response({"cr_utilization_report": formatted_data})
 
 @api_view(["POST"])
@@ -335,10 +345,6 @@ def team_and_product_wise_report(request):
     # Fetching all the rows
     rows = cursor.fetchall()
 
-    # Closing the cursor and connection
-    cursor.close()
-    conn.close()
-
     # Organizing data by product cluster
     data_by_cluster = {}
     for row in rows:
@@ -350,4 +356,44 @@ def team_and_product_wise_report(request):
             'Achv Qty': achv_qty,
             'Achv %': achv_percent
         }
+    
+    # Closing the cursor and connection
+    cursor.close()
+    conn.close()
     return Response({"Team wise product wise report": data_by_cluster})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def salesman_and_product_wise_report(request):
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    
+    sql_query = report_queries.salesman_and_product_wise_query()
+    cursor.execute(sql_query)
+
+    # Fetching all the rows
+    rows = cursor.fetchall()
+
+    # Grouping the data by product and salesman
+    results = {}
+    for row in rows:
+        salesman_name, product_name, target_qty, achv_qty, achv_percent = row
+
+        # Create product entry if not exist
+        if product_name not in results:
+            results[product_name] = {}
+
+        # Create salesman entry under product if not exist
+        if salesman_name not in results[product_name]:
+            results[product_name][salesman_name] = {
+                'target': target_qty,
+                'achieved': achv_qty,
+                'achieved_percent': achv_percent
+            }
+
+    # Closing the cursor and connection
+    cursor.close()
+    conn.close()
+
+    return Response({"Product wise salesman wise report": results})

@@ -426,3 +426,68 @@ def cr_utilization_report_query():
 
             """
         return sql_query
+
+
+def team_and_product_wise_query():
+    sql_query = """
+WITH TargetCustomers AS (
+    SELECT 
+        SV.[Team Name],  
+        SV.[Item Category] AS [Product cluster], 
+        ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10,2))), 2) AS [Target Qty]
+    FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)
+    WHERE SV.[Item Category] <> 'Welding Electrodes'
+    GROUP BY 
+        SV.[Team Name],
+        SV.[Item Category]
+),
+SalesTemp AS (
+    SELECT
+        ST.[Team Name],   
+        IL.[Item Category] AS [Product cluster],
+        SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN SV.[Qty(MTs)] ELSE 0 END) AS [Achv Qty]
+    FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
+    INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
+        ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
+    INNER JOIN (
+        SELECT DISTINCT
+            [Item Details],
+            [Item Category]
+        FROM dbo.tbl_ItemsList IL WITH (NOLOCK)
+    ) IL ON IL.[Item Details] = SV.[Item Details]
+    WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE())
+      AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE())
+      AND SV.[Item Details] <> 'Welding Electrodes'
+    GROUP BY
+        ST.[Team Name], 
+        IL.[Item Category]
+),
+CombinedSales AS (
+    SELECT 
+        COALESCE(TC.[Team Name], ST.[Team Name]) AS [Team Name],   
+        COALESCE(TC.[Product cluster], ST.[Product cluster]) AS [Product cluster],
+        COALESCE(TC.[Target Qty], 0) AS [Target Qty], 
+        SUM(ST.[Achv Qty]) AS [Achv Qty]
+    FROM TargetCustomers TC
+    FULL JOIN SalesTemp ST
+        ON TC.[Team Name] = ST.[Team Name] 
+        AND TC.[Product cluster] = ST.[Product cluster]
+    GROUP BY
+        COALESCE(TC.[Team Name], ST.[Team Name]),   
+        COALESCE(TC.[Product cluster], ST.[Product cluster]),
+        COALESCE(TC.[Target Qty], 0)
+)
+
+-- Final output
+SELECT    
+    [Team Name],    
+    [Product cluster],
+    [Target Qty],
+    [Achv Qty],
+    ROUND(CAST([Achv Qty] AS FLOAT) / NULLIF(CAST([Target Qty] AS FLOAT), 0) * 100, 0) AS [Achv %]
+FROM CombinedSales
+ORDER BY [Team Name], [Product cluster];
+
+    """
+    return sql_query
+

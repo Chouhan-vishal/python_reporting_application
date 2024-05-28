@@ -470,3 +470,47 @@ def target_and_achieved_report(request):
     cursor.close()
     conn.close()
     return Response(response_data)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def welding_electrode_product_sales_report(request):
+    start_date = request.data.get("start_date", None)
+    end_date = request.data.get("end_date", None)
+    if not start_date or not end_date:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    sql_query = report_queries.welding_electrode_product_sales_query(start_date, end_date)
+    # Assuming you execute the query with the provided start_date and end_date values
+    cursor.execute(sql_query)
+    results = cursor.fetchall()
+    team_sales_summary = {}
+    team_sales_summary = defaultdict(lambda: {
+        'team_target_qty': 0,
+        'team_sales_quantity': 0,
+        'team_achieved%': 0,
+        'sales_persons': []
+    })
+    for row in results:
+        team_name = row[0]
+        sales_person = row[1]
+        sales_summary = {
+            'sales_person': sales_person,
+            'target_qty': row[2],
+            'sales_quantity': row[3],
+            'achieved%': row[4]
+        }
+        team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty']
+        team_sales_summary[team_name]['team_sales_quantity'] += sales_summary['sales_quantity']
+        team_sales_summary[team_name]['sales_persons'].append(sales_summary)
+
+    for team_name, team_summary in team_sales_summary.items():
+        team_target_qty = team_summary['team_target_qty']
+        team_sales_qty = team_summary['team_sales_quantity']
+        if team_target_qty != 0:
+            team_summary['team_achieved%'] = round((team_sales_qty / team_target_qty) * 100, 2)
+    response_data = {"team_sales_summary": dict(team_sales_summary)}
+    cursor.close()
+    conn.close()
+    return Response(response_data)

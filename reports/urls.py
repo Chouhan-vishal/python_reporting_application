@@ -12,4 +12,5 @@ urlpatterns = [
     path('team-and-product-wise-report/', views.team_and_product_wise_report),
     path('salesman-and-product-wise-report/', views.salesman_and_product_wise_report),
     path('target-and-achieved-report/', views.target_and_achieved_report),
+    path('welding-electrode-product-report/', views.welding_electrode_product_sales_report),
 ]

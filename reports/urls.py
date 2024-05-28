@@ -11,4 +11,5 @@ urlpatterns = [
     path('cr-utilization-report/', views.cr_utilization_report),
     path('team-and-product-wise-report/', views.team_and_product_wise_report),
     path('salesman-and-product-wise-report/', views.salesman_and_product_wise_report),
+    path('target-and-achieved-report/', views.target_and_achieved_report),
 ]

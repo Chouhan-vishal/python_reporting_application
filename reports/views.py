@@ -404,3 +404,69 @@ def salesman_and_product_wise_report(request):
     conn.close()
 
     return Response({"Product wise salesman wise report": results})
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def target_and_achieved_report(request):
+    start_date = request.data.get("start_date", None)
+    end_date = request.data.get("end_date", None)
+    if not start_date or not end_date:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    pre_date = report_services.get_previous_date(end_date)
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    sql_query = report_queries.target_and_achieved_query(start_date, end_date, pre_date)
+    # Assuming you execute the query with the provided start_date and end_date values
+    cursor.execute(sql_query)
+    results = cursor.fetchall()
+
+    # Initialize the team sales summary dictionary with default values
+    team_sales_summary = defaultdict(lambda: {
+        'team_target_qty': 0,
+        'team_sales_quantity': 0,
+        'team_achieved%': 0,
+        'TeamPreDaySalesValue': 0,
+        'sales_persons': [],
+        'team_above_25_days_outstanding': 0,
+        'team_target_customer_count': 0,
+        'team_target_customer_reached': 0
+    })
+
+    # Process each row in the results
+    for row in results:
+        team_name = row[0]
+        sales_person = row[1]
+        sales_summary = {
+            'sales_person': sales_person,
+            'target_qty': row[2],
+            'sales_quantity': row[3],
+            'achieved%': row[4],
+            'PreDaySalesValue': row[5],
+            '25DaysOutstanding': row[6],
+            'TargetCustomerCount': row[7],
+            'TargetCustomerReached': row[8]
+        }
+
+        # Aggregate team-level data
+        team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty']
+        team_sales_summary[team_name]['team_sales_quantity'] += sales_summary['sales_quantity']
+        team_sales_summary[team_name]['TeamPreDaySalesValue'] += sales_summary['PreDaySalesValue']
+        team_sales_summary[team_name]['team_above_25_days_outstanding'] += sales_summary['25DaysOutstanding']
+        team_sales_summary[team_name]['team_target_customer_count'] += sales_summary['TargetCustomerCount']
+        team_sales_summary[team_name]['team_target_customer_reached'] += sales_summary['TargetCustomerReached']
+
+        # Append the sales person's data to the team's list of sales persons
+        team_sales_summary[team_name]['sales_persons'].append(sales_summary)
+
+    # Calculate the achievement percentage for each team
+    for team_name, team_summary in team_sales_summary.items():
+        team_target_qty = team_summary['team_target_qty']
+        team_sales_qty = team_summary['team_sales_quantity']
+        if team_target_qty != 0:
+            team_summary['team_achieved%'] = round((team_sales_qty / team_target_qty) * 100, 2)
+
+    # Convert the team sales summary to a dictionary and wrap it in a response dictionary
+    response_data = {"team_sales_summary": dict(team_sales_summary)}
+    cursor.close()
+    conn.close()
+    return Response(response_data)

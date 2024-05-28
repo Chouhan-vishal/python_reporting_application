@@ -333,7 +333,7 @@ def weekly_report_query(start_date, end_date):
         LEFT JOIN WeeklySales WS ON ST.[Sales Person] = WS.[Sales Person] AND ST.[Team Name] = WS.[Team Name]
 
         WHERE ST.[Team Name] IS NOT NULL
-        ORDER BY 1;
+        ORDER BY ST.[Team Name];
 
         """
     return sql_query

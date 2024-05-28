@@ -140,7 +140,7 @@ def product_wise_sales_summary(request):
         if record['achievement_percentage'] is None:
             record['achievement_percentage'] = 0
         data.append(record)
-    final_response = {"Product wise sales": data}
+    final_response = {"product_wise_sales": data}
 
     # Closing the cursor and connection
     cursor.close()

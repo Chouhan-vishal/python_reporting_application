@@ -203,14 +203,14 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date):
       GROUP BY IL.[Item Category]
     )
     SELECT 
-      TC.[Item Category],
-      TC.[Target Qty],
-      S.[Achv Qty],
-      PDQ.[Achv Qty] AS [Pre Day Sales],
+      TC.[Item Category] AS [item_category],
+      TC.[Target Qty] AS [target_qty],
+      S.[Achv Qty] AS [achvd_qty],
+      PDQ.[Achv Qty] AS [pre_day_sales],
       CASE 
         WHEN TC.[Target Qty] = 0 THEN 0
         ELSE (S.[Achv Qty] / TC.[Target Qty]) * 100 
-      END AS [Achievement Percentage]
+      END AS [achievement_percentage]
     FROM TargetCustomers TC
     LEFT JOIN Sales S ON TC.[Item Category] = S.[Item Category]
     LEFT JOIN PreviousDateQty PDQ ON TC.[Item Category] = PDQ.[Item Category]

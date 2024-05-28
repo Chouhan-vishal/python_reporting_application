@@ -68,6 +68,7 @@ def sales_collection_outstanding_report(request):
     end_date = request.data.get("end_date", None)
     if not start_date or not end_date:
         return Response({"error": "Please provide both start_date and end_date."}, status=400)
+  
     pre_date = report_services.get_previous_date(end_date)
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
@@ -75,38 +76,39 @@ def sales_collection_outstanding_report(request):
     cursor.execute(query)
 
     results = cursor.fetchall()
-    team_sales_summary = {}
     team_sales_summary = defaultdict(lambda: {
-        'Team Pre Day Sales(MTs)': 0,
-        'Team Pre Day Collection': 0,
-        'Team Overall Outstanding Amt': 0,
-        'Team Above 25 Days O/S': 0,
-        'Team Above 45 Days O/S': 0,
-        'Team Above 90 Days O/S': 0,
-        'Team sales persons': []
+        'team_pre_day_sales_mts': 0,
+        'team_pre_day_collection': 0,
+        'team_overall_outstanding_amt': 0,
+        'team_above_25_days_os': 0,
+        'team_above_45_days_os': 0,
+        'team_above_90_days_os': 0,
+        'team_sales_persons': []
     })
+    
     for row in results:
         team_name = row[0]
         sales_person = row[1]
         sales_summary = {
-            'Sales Person': sales_person,
-            'Pre Day Sales(MTs)': row[2],
-            'Pre Day Collection': row[3],
-            'Overall Outstanding Amt': row[4],
-            'Team Above 25 Days O/S':row[5],
-            'Team Above 45 Days O/S': row[6],
-            'Team Above 90 Days O/S': row[7]
+            'sales_person': sales_person,
+            'pre_day_sales_mts': row[2],
+            'pre_day_collection': row[3],
+            'overall_outstanding_amt': row[4],
+            'above_25_days_os': row[5],
+            'above_45_days_os': row[6],
+            'above_90_days_os': row[7]
         }
         # Update team summary values
-        team_sales_summary[team_name]['Team Pre Day Sales(MTs)'] += row[2]
-        team_sales_summary[team_name]['Team Pre Day Collection'] += row[3]
-        team_sales_summary[team_name]['Team Overall Outstanding Amt'] += row[4]
-        team_sales_summary[team_name]['Team Above 25 Days O/S'] += row[5]
-        team_sales_summary[team_name]['Team Above 45 Days O/S'] += row[6]
-        team_sales_summary[team_name]['Team Above 90 Days O/S'] += row[7]
+        team_sales_summary[team_name]['team_pre_day_sales_mts'] += row[2]
+        team_sales_summary[team_name]['team_pre_day_collection'] += row[3]
+        team_sales_summary[team_name]['team_overall_outstanding_amt'] += row[4]
+        team_sales_summary[team_name]['team_above_25_days_os'] += row[5]
+        team_sales_summary[team_name]['team_above_45_days_os'] += row[6]
+        team_sales_summary[team_name]['team_above_90_days_os'] += row[7]
 
         # Append sales person summary to the team
-        team_sales_summary[team_name]['Team sales persons'].append(sales_summary)
+        team_sales_summary[team_name]['team_sales_persons'].append(sales_summary)
+    
     team_sales_summary = dict(team_sales_summary)
     cursor.close()
     conn.close()
@@ -133,10 +135,10 @@ def product_wise_sales_summary(request):
     for row in results:
         record = dict(zip(columns, row))
         # Handling Nulls
-        if record['Pre Day Sales'] is None:
-            record['Pre Day Sales'] = 0
-        if record['Achievement Percentage'] is None:
-            record['Achievement Percentage'] = 0
+        if record['pre_day_sales'] is None:
+            record['pre_day_sales'] = 0
+        if record['achievement_percentage'] is None:
+            record['achievement_percentage'] = 0
         data.append(record)
     final_response = {"Product wise sales": data}
 

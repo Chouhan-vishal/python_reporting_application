@@ -36,7 +36,7 @@ def get_previous_date(end_date):
     end_date (str): The end date as a string in the format 'YYYY-MM-DD'.
 
     Returns:
-    datetime.date: The previous date as a datetime.date object.
+    datetime.date: The previous date as a datetime.date string.
     """
     today_date = datetime.today().date()
     end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
@@ -56,5 +56,4 @@ def get_previous_date(end_date):
             # Subtract one day to get the previous day
             pre_date = today_date - timedelta(days=1)
     
-    return pre_date
     return pre_date.strftime('%Y-%m-%d')

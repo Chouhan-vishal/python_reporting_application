@@ -71,7 +71,7 @@ def sales_collection_outstanding_report(request):
     pre_date = report_services.get_previous_date(end_date)
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
-    query = report_queries.sales_collection_outstanding_summary(start_date, end_date, pre_date)
+    query = report_queries.sales_collection_outstanding_summary(pre_date)
     cursor.execute(query)
 
     results = cursor.fetchall()
@@ -256,8 +256,9 @@ def collection_report(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def customer_wise_outstanding(request):
-
     outstanding_value = request.data.get("outstanding")
+    team_name = request.data.get("team_name")
+    salesman = request.data.get("salesman")
     outstanding_days = [0, 25, 45, 90]
     if outstanding_value not in outstanding_days:
         return Response({"error": "Please provide valid outstanding day value"}, status=400)
@@ -265,7 +266,7 @@ def customer_wise_outstanding(request):
 
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
-    sql_query = report_queries.customer_wise_outstanding_query(outstanding_value)
+    sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, team_name, salesman)
     cursor.execute(sql_query)
 
     # Fetch data
@@ -296,7 +297,9 @@ def customer_wise_outstanding(request):
 def cr_utilization_report(request):
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
-    sql_query = report_queries.cr_utilization_report_query()
+    team_name = request.data.get("team_name")
+    salesman = request.data.get("salesman")
+    sql_query = report_queries.cr_utilization_report_query(team_name, salesman)
     cursor.execute(sql_query)
 
     # Fetch data
@@ -368,8 +371,10 @@ def team_and_product_wise_report(request):
 def salesman_and_product_wise_report(request):
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
+    team_name = request.data.get("team_name")
+    salesman = request.data.get("salesman")
     
-    sql_query = report_queries.salesman_and_product_wise_query()
+    sql_query = report_queries.salesman_and_product_wise_query(team_name, salesman)
     cursor.execute(sql_query)
 
     # Fetching all the rows

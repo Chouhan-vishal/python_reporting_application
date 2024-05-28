@@ -742,3 +742,73 @@ def welding_electrode_product_sales_query(start_date, end_date):
 
     """
     return sql_query
+
+def durastrong_tmt_product_sales_query(start_date, end_date):
+    sql_query = f"""
+    WITH TempSalesTeam AS (
+        SELECT DISTINCT  
+            ST.[Team Name],   
+            [Sales Person], 
+            CAST(0 AS DECIMAL(10, 2)) AS [Target Qty],
+            CAST(0 AS DECIMAL(10, 2)) AS [Sales Achv] 
+        FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
+    ),
+    TargetCustomers AS (
+        SELECT  
+            SV.[Team Name],   
+            SV.[Sales Person], 
+            ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10, 2))), 2) AS [Target Qty] 
+        FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)
+        WHERE [Item Category] = 'DURASTRONG TMT' 
+        AND [Item Category] <> 'Welding Electrodes'
+        GROUP BY 
+            SV.[Team Name], 
+            SV.[Sales Person]
+    ),
+    CTESales AS (
+        SELECT      
+            ST.[Team Name],
+            ST.[Sales Person],  
+            SUM([Qty(MTs)]) AS [Sales Achv]
+        FROM TempSalesTeam ST WITH (NOLOCK)
+        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
+            ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
+        WHERE SV.[Item Details] = 'DURASTRONG TMT'
+        AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
+        GROUP BY 
+            ST.[Team Name],
+            ST.[Sales Person]
+    ),
+    TempSales AS (
+        SELECT 
+            [Team Name],
+            [Sales Person],
+            SUM([Sales Achv]) AS [Sales Achv] 
+        FROM CTESales
+        GROUP BY 
+            [Team Name],
+            [Sales Person]
+    ),
+    FinalSalesTeam AS (
+        SELECT 
+            ST.[Team Name],
+            ST.[Sales Person], 
+            ISNULL(TC.[Target Qty], 0) AS [Target Qty],
+            ISNULL(TS.[Sales Achv], 0) AS [Sales Achv]
+        FROM TempSalesTeam ST
+        LEFT JOIN TargetCustomers TC ON TC.[Team Name] = ST.[Team Name]
+            AND TC.[Sales Person] = ST.[Sales Person]
+        LEFT JOIN TempSales TS ON TS.[Team Name] = ST.[Team Name]
+            AND TS.[Sales Person] = ST.[Sales Person]
+    )
+    SELECT DISTINCT 
+        [Team Name],
+        [Sales Person],
+        [Target Qty],
+        [Sales Achv],
+        ISNULL(ROUND(CAST([Sales Achv] AS FLOAT) / NULLIF(CAST([Target Qty] AS FLOAT), 0) * 100, 0), 0) AS [Achv %]
+    FROM FinalSalesTeam
+    WHERE [Team Name] IS NOT NULL
+    ORDER BY [Team Name];
+    """
+    return sql_query

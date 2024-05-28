@@ -162,15 +162,17 @@ def weekly_summary(request):
     cursor.execute(query)
     results = cursor.fetchall()
 
+    team_sales_list = []
+    
     team_sales_summary = defaultdict(lambda: {
-    'Target Qty(MTs)': 0,
-    'Achvd Qty(MTs)': 0,
-    'Pending Target': 0,
-    'Weekly Target': 0,
-    'Collection Target': 0,
-    'Collection Achived': 0,
-    'Salesmen': [],
-    'Weekly Achved Qty(MTs)': 0
+        'Target Qty(MTs)': 0,
+        'Achvd Qty(MTs)': 0,
+        'Pending Target': 0,
+        'Weekly Target': 0,
+        'Collection Target': 0,
+        'Collection Achived': 0,
+        'Salesmen': [],
+        'Weekly Achved Qty(MTs)': 0
     })
     # Process query results
     for row in results:
@@ -200,13 +202,18 @@ def weekly_summary(request):
         # Append salesmen summary to the team
         team_sales_summary[team_name]['Salesmen'].append(sales_summary)
 
+    # Convert defaultdict to list of dictionaries
+    for team_name, summary in team_sales_summary.items():
+        team_sales_list.append({
+            'Team Name': team_name,
+            **summary
+        })
+
     # Close cursor and connection
     cursor.close()
     conn.close()
 
-    # Convert defaultdict to regular dictionary
-    team_sales_summary = dict(team_sales_summary)
-    return Response(team_sales_summary)
+    return Response(team_sales_list)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])

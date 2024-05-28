@@ -651,3 +651,94 @@ def target_and_achieved_query(start_date, end_date, pre_day):
 
     """
     return sql_query
+
+
+def welding_electrode_product_sales_query(start_date, end_date):
+    sql_query = f"""
+    WITH 
+    --TargetCustomers
+    TargetCustomers AS (
+        SELECT     
+            SV.[Team Name],  
+            SV.[Sales Person],
+            ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10,2))),2) AS [Target Qty]
+        FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)   
+        WHERE [Item Category] = 'Welding Electrodes'
+        GROUP BY 
+            SV.[Team Name],
+            SV.[Sales Person]
+    ),
+    --Sales 
+    Sales AS (
+        SELECT          
+            ST.[Team Name],   
+            ST.[Sales Person],
+            TC.[Target Qty], -- Corrected to use Target Qty from TargetCustomers
+            SUM(CASE WHEN SV.[Item Details] = 'Welding Electrodes' THEN [Qty(Box)] END) AS [Achv Qty]
+        FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)  
+        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
+            ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))  
+        INNER JOIN TargetCustomers TC -- Joining with TargetCustomers to get Target Qty
+            ON TC.[Team Name] = ST.[Team Name]
+            AND TC.[Sales Person] = ST.[Sales Person]
+        WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}' 
+        AND SV.[Item Details] = 'Welding Electrodes' 
+        GROUP BY 
+            ST.[Team Name], 
+            ST.[Sales Person],
+            TC.[Target Qty] -- Grouping by Target Qty to get correct sum
+    ),
+    --Final Sales Report
+    SalesReportFinal AS (
+        SELECT 
+            [Team Name],  
+            [Sales Person],
+            [Target Qty],
+            SUM([Achv Qty]) AS [Achv Qty]
+        FROM (
+            SELECT 
+                [Team Name], 
+                [Sales Person],
+                [Target Qty], 
+                SUM([Achv Qty]) AS [Achv Qty]
+            FROM Sales
+            GROUP BY 
+                [Team Name], 
+                [Sales Person],
+                [Target Qty]
+
+            UNION ALL
+
+            SELECT          
+                TC.[Team Name],   
+                TC.[Sales Person],
+                TC.[Target Qty], 
+                CAST(0 AS DECIMAL(10,2)) AS [Achv Qty]
+            FROM TargetCustomers TC
+            INNER JOIN (
+                SELECT DISTINCT [Team Name], [Sales Person] FROM TargetCustomers
+                EXCEPT
+                SELECT DISTINCT [Team Name], [Sales Person] FROM Sales
+            ) ah
+            ON ah.[Team Name] = TC.[Team Name] AND ah.[Sales Person] = TC.[Sales Person]
+        ) ap
+        GROUP BY
+            [Team Name],   
+            [Sales Person],
+            [Target Qty]
+    )
+    --Query to retrieve final results with achieved percentage and ordered by team name
+    SELECT    
+        [Team Name],    
+        [Sales Person],
+        [Target Qty],
+        [Achv Qty],
+        CASE 
+            WHEN [Target Qty] > 0 THEN ROUND(([Achv Qty] / [Target Qty]) * 100, 2)
+            ELSE 0
+        END AS [Achieved %]
+    FROM SalesReportFinal
+    ORDER BY [Team Name];
+
+    """
+    return sql_query

@@ -812,3 +812,11 @@ def durastrong_tmt_product_sales_query(start_date, end_date):
     ORDER BY [Team Name];
     """
     return sql_query
+
+def sales_register_query(start_date, end_date):
+    sql_query = f"select * from tbl_SalesVouchers where [Voucher Date] BETWEEN '{start_date}' AND '{end_date}'"
+    return sql_query
+
+def block_customers_list_query():
+    sql_query = f"SELECT * FROM tbl_CustomerList WHERE LOWER([Ledger Status]) LIKE '%inactive%';"
+    return sql_query

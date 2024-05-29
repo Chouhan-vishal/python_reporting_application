@@ -14,4 +14,6 @@ urlpatterns = [
     path('target-and-achieved-report/', views.target_and_achieved_report),
     path('welding-electrode-product-report/', views.welding_electrode_product_sales_report),
     path('durastrong-tmt-product-report/', views.durastrong_tmt_product_sales_report),
+    path('sales-register-report/', views.sales_register_report),
+    path('block-customers-list-report/', views.block_customers_list_report),
 ]

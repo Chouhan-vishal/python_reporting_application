@@ -567,3 +567,31 @@ def durastrong_tmt_product_sales_report(request):
     conn.close()
 
     return Response(response_data)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def sales_register_report(request):
+    start_date = request.data.get("start_date", None)
+    end_date = request.data.get("end_date", None)
+    if not start_date or not end_date:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    sql_query = report_queries.sales_register_query(start_date, end_date)
+    # Assuming you execute the query with the provided start_date and end_date values
+    cursor.execute(sql_query)
+    results = cursor.fetchall()
+    data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
+    return Response(data)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def block_customers_list_report(request):
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    # Assuming you execute the query with the provided start_date and end_date values
+    sql_query = report_queries.block_customers_list_query()
+    cursor.execute(sql_query)
+    results = cursor.fetchall()
+    data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
+    return Response(data)

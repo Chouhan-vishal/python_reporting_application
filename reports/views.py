@@ -49,13 +49,21 @@ def sales_summary_report(request):
         team_sales_summary[team_name]['team_sales_quantity'] += sales_summary['sales_quantity']
         team_sales_summary[team_name]['TeamPreDaySalesValue'] += sales_summary['PreDaySalesValue']
         team_sales_summary[team_name]['sales_persons'].append(sales_summary)
-    
+    response_data = []
     for team_name, team_summary in team_sales_summary.items():
         team_target_qty = team_summary['team_target_qty']
         team_sales_qty = team_summary['team_sales_quantity']
         if team_target_qty != 0:
             team_summary['team_achieved%'] = round((team_sales_qty / team_target_qty) * 100, 2)
-    response_data = {"team_sales_summary": dict(team_sales_summary)}
+        team_data = {
+            'team_name': team_name,
+            'team_target_qty': team_summary['team_target_qty'],
+            'team_sales_quantity': team_summary['team_sales_quantity'],
+            'team_achieved%': team_summary['team_achieved%'],
+            'TeamPreDaySalesValue': team_summary['TeamPreDaySalesValue'],
+            'sales_persons': team_summary['sales_persons'],
+        }
+        response_data.append(team_data)
     cursor.close()
     conn.close()
 
@@ -265,11 +273,12 @@ def collection_report(request):
     result = []
     for team_name, date_data in team_totals.items():
         for receipt_date, collections in date_data.items():
+            individual_sales_list = [{"SalesPerson": sp, "TotalCollection": tc} for sp, tc in collections["IndividualSales"].items()]
             result.append({
                 "TeamName": team_name,
                 "ReceiptDate": receipt_date,
                 "TotalCollection": collections["TotalCollection"],
-                "IndividualSales": collections["IndividualSales"]
+                "IndividualSales": individual_sales_list
             })
     
     # Closing the cursor and connection

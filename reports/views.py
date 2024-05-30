@@ -393,7 +393,7 @@ def team_and_product_wise_report(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+# @permission_classes([IsAuthenticated])
 def salesman_and_product_wise_report(request):
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
@@ -635,3 +635,25 @@ def block_customers_list_report(request):
     data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
 
     return Response(data)
+
+@api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+def target_customers_mom_report(request):
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    month_count = request.data.get("month_count", None)
+    if not month_count:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    date_ranges = report_services.get_monthly_date_ranges(month_count)
+    result = {}
+
+    for _, item in enumerate(date_ranges):
+        # Assuming you execute the query with the provided start_date and end_date values
+        sql_query = report_queries.target_customers_mom_query(item['start_date'], item['end_date'])
+        cursor.execute(sql_query)
+        results = cursor.fetchall()
+        data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
+        month = item['month']
+        result[month] = data
+
+    return Response(result)

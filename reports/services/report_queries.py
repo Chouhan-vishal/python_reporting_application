@@ -887,3 +887,29 @@ ORDER BY
 
     """
     return sql_query
+
+
+def product_wise_month_on_month_query(start_date, end_date):
+    sql_query = f"""
+    WITH Sales AS (
+    SELECT          
+        IL.[Item Category] AS [Item Category],
+        SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END) AS [Achv Qty] 
+    FROM (SELECT DISTINCT
+            [Item Details],
+            [Item Category] 
+            FROM dbo.tbl_ItemsList IL  WITH(NOLOCK)) IL   
+    INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK) 
+        ON IL.[Item Details] = SV.[Item Details]  
+    WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'  
+        AND SV.[Item Details] <> 'Welding Electrodes' 
+    GROUP BY IL.[Item Category]
+    )
+    SELECT 
+    S.[Item Category] AS [item_category],
+    S.[Achv Qty] AS [achvd_qty]
+    FROM Sales S
+    ORDER BY S.[Item Category];
+    """
+
+    return sql_query

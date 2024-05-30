@@ -5,8 +5,38 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 import random
+from rest_framework import serializers
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 
+    
+def drf_schema(serializer_name, serializer_fields=None):
+    if serializer_name=="DateSerializer":
+        serializer_fields={
+                "start_date": serializers.DateField(input_formats=['%Y-%m-%d']),
+                "end_date": serializers.DateField(input_formats=['%Y-%m-%d']),
+            }
+    return extend_schema(
+        request=inline_serializer(
+            name=serializer_name,
+            fields=serializer_fields
+        ),
+        responses={
+            HTTP_200_OK: {},
+            HTTP_400_BAD_REQUEST: {}
+        },
+        parameters=[
+            OpenApiParameter(
+                name='Authorization',
+                location=OpenApiParameter.HEADER,
+                description='Authorization Bearer token',
+                required=True,
+                type=OpenApiTypes.STR
+            ),
+        ]
+    )
 # Send email with the html template
 def send_email(context,to_email,template_name,subject):
     html_message = render_to_string(template_name, context)

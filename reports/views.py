@@ -58,6 +58,7 @@ def sales_summary_report(request):
     response_data = {"team_sales_summary": dict(team_sales_summary)}
     cursor.close()
     conn.close()
+
     return Response(response_data)
 
 
@@ -85,7 +86,7 @@ def sales_collection_outstanding_report(request):
         'team_above_90_days_os': 0,
         'team_sales_persons': []
     })
-    
+
     for row in results:
         team_name = row[0]
         sales_person = row[1]
@@ -109,10 +110,24 @@ def sales_collection_outstanding_report(request):
         # Append sales person summary to the team
         team_sales_summary[team_name]['team_sales_persons'].append(sales_summary)
     
-    team_sales_summary = dict(team_sales_summary)
+    # Convert the team_sales_summary dictionary to the desired array of dictionaries format
+    result = []
+    for team_name, summary in team_sales_summary.items():
+        team_dict = {
+            'team_name': team_name,
+            'team_pre_day_sales_mts': summary['team_pre_day_sales_mts'],
+            'team_pre_day_collection': summary['team_pre_day_collection'],
+            'team_overall_outstanding_amt': summary['team_overall_outstanding_amt'],
+            'team_above_25_days_os': summary['team_above_25_days_os'],
+            'team_above_45_days_os': summary['team_above_45_days_os'],
+            'team_above_90_days_os': summary['team_above_90_days_os'],
+            'team_sales_persons': summary['team_sales_persons']
+        }
+        result.append(team_dict)
     cursor.close()
     conn.close()
-    return Response(team_sales_summary)
+
+    return Response(result)
 
 
 @api_view(["POST"])
@@ -229,7 +244,7 @@ def collection_report(request):
     
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
-    team_totals = {}
+    team_totals = defaultdict(lambda: defaultdict(lambda: {"TotalCollection": 0, "IndividualSales": {}}))
     
     current_date = start_date
     while current_date <= end_date:
@@ -241,26 +256,27 @@ def collection_report(request):
             team_name, sales_person, total_collection = row
             receipt_date = current_date.strftime('%Y-%m-%d')
             
-            if team_name not in team_totals:
-                team_totals[team_name] = {}
-            
-            if receipt_date not in team_totals[team_name]:
-                team_totals[team_name][receipt_date] = {
-                    "TotalCollection": 0,
-                    "IndividualSales": {}
-                }
-                
             team_totals[team_name][receipt_date]["TotalCollection"] += total_collection
             team_totals[team_name][receipt_date]["IndividualSales"][sales_person] = total_collection
             
         current_date += timedelta(days=1)
     
+    # Convert the team_totals dictionary to the desired array of dictionaries format
+    result = []
+    for team_name, date_data in team_totals.items():
+        for receipt_date, collections in date_data.items():
+            result.append({
+                "TeamName": team_name,
+                "ReceiptDate": receipt_date,
+                "TotalCollection": collections["TotalCollection"],
+                "IndividualSales": collections["IndividualSales"]
+            })
     
     # Closing the cursor and connection
     cursor.close()
     conn.close()
     
-    return Response(team_totals)
+    return Response(result)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -344,7 +360,8 @@ def cr_utilization_report(request):
     # Closing the cursor and connection
     cursor.close()
     conn.close()
-    return Response({"cr_utilization_report": formatted_data})
+
+    return Response(formatted_data)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -405,12 +422,27 @@ def salesman_and_product_wise_report(request):
                 'achieved': achv_qty,
                 'achieved_percent': achv_percent
             }
+    formatted_data = []
+    for product_name, salesmen in results.items():
+        product_data = {
+            'Product Name': product_name,
+            'Salesmen': []
+        }
+        for salesman_name, data in salesmen.items():
+            salesman_data = {
+                'Salesman Name': salesman_name,
+                'Target': data['target'],
+                'Achieved': data['achieved'],
+                'Achieved Percent': data['achieved_percent']
+            }
+            product_data['Salesmen'].append(salesman_data)
+        formatted_data.append(product_data)
 
     # Closing the cursor and connection
     cursor.close()
     conn.close()
 
-    return Response({"Product wise salesman wise report": results})
+    return Response(formatted_data)
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -471,12 +503,18 @@ def target_and_achieved_report(request):
         team_sales_qty = team_summary['team_sales_quantity']
         if team_target_qty != 0:
             team_summary['team_achieved%'] = round((team_sales_qty / team_target_qty) * 100, 2)
+    
+    team_sales_summary_list = []
 
-    # Convert the team sales summary to a dictionary and wrap it in a response dictionary
-    response_data = {"target_and_achieved_report": dict(team_sales_summary)}
+    # Convert the dictionary to a list of dictionaries
+    for team_name, team_summary in team_sales_summary.items():
+        team_summary['team_name'] = team_name
+        team_sales_summary_list.append(team_summary)
+        # Convert the team sales summary to a dictionary and wrap it in a response dictionary
     cursor.close()
     conn.close()
-    return Response(response_data)
+
+    return Response(team_sales_summary_list)
 
 
 @api_view(["POST"])
@@ -582,6 +620,7 @@ def sales_register_report(request):
     cursor.execute(sql_query)
     results = cursor.fetchall()
     data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
+
     return Response(data)
 
 @api_view(["POST"])
@@ -594,4 +633,5 @@ def block_customers_list_report(request):
     cursor.execute(sql_query)
     results = cursor.fetchall()
     data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
+
     return Response(data)

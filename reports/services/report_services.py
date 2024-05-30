@@ -57,3 +57,24 @@ def get_previous_date(end_date):
             pre_date = today_date - timedelta(days=1)
     
     return pre_date.strftime('%Y-%m-%d')
+
+def get_monthly_date_ranges(num_months):
+    date_ranges = []
+    today = datetime.today()
+    current_month = today.month
+    current_year = today.year
+
+    for i in range(num_months):
+        month = current_month - i
+        year = current_year
+        if month <= 0:
+            month += 12
+            year -= 1
+        
+        start_date = datetime(year, month, 1).strftime('%Y-%m-%d')
+        end_date = (datetime(year, month, 1) + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        end_date = end_date.strftime('%Y-%m-%d')
+
+        date_ranges.append({'month': datetime(year, month, 1).strftime('%B'), 'start_date': start_date, 'end_date': end_date})
+
+    return date_ranges

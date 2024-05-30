@@ -16,4 +16,5 @@ urlpatterns = [
     path('durastrong-tmt-product-report/', views.durastrong_tmt_product_sales_report),
     path('sales-register-report/', views.sales_register_report),
     path('block-customers-list-report/', views.block_customers_list_report),
+    path('target-customers-mom-report/', views.target_customers_mom_report),
 ]

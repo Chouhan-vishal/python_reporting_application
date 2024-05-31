@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from collections import defaultdict
 import logging
 from datetime import datetime, timedelta
-
+import pandas as pd
 
 logger = logging.getLogger('reports')
 
@@ -377,7 +377,12 @@ def cr_utilization_report(request):
 def team_and_product_wise_report(request):
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
-    sql_query = report_queries.team_and_product_wise_query()
+    start_date = request.data.get("start_date", None)
+    end_date = request.data.get("end_date", None)
+    if not start_date or not end_date:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    pre_date = report_services.get_previous_date(end_date)
+    sql_query = report_queries.team_and_product_wise_query(start_date,end_date, pre_date)
     cursor.execute(sql_query)
 
     # Fetching all the rows
@@ -572,7 +577,7 @@ def welding_electrode_product_sales_report(request):
 
 
 @api_view(["POST"])
-# @permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated])
 def durastrong_tmt_product_sales_report(request):
     start_date = request.data.get("start_date", None)
     end_date = request.data.get("end_date", None)
@@ -689,3 +694,40 @@ def product_wise_month_on_month_report(request):
         result[month] = data
 
     return Response(result)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def review_product_wise_report(request):
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    month_count = request.data.get("month_count", None)
+    if not month_count:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    sql_query = report_queries.review_product_wise_query(month_count)
+    cursor.execute(sql_query)
+    results = cursor.fetchall()
+    data = defaultdict(lambda: defaultdict(lambda: {"Target Qty": 0, "Months": defaultdict(float)}))
+
+    # Process the results
+    for row in results:
+        team_name, product_cluster, target_qty, achv_qty, year, month = row
+        if achv_qty is None:
+            achv_qty = 0.0
+        if month is None:
+            month = "No Month"
+        data[team_name][product_cluster]["Target Qty"] = float(target_qty)
+        data[team_name][product_cluster]["Months"][month] = float(achv_qty)
+
+    # Convert the data to the desired format
+    result = {}
+    for team, products in data.items():
+        team_products = {}
+        for product, product_data in products.items():
+            product_dict = {
+                "Target Qty": product_data["Target Qty"],
+                "Months": dict(product_data["Months"])
+            }
+            team_products[product] = product_dict
+        result[team] = team_products
+
+    return Response(data)

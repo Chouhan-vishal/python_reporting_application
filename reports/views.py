@@ -9,7 +9,6 @@ from rest_framework.views import APIView
 from collections import defaultdict
 import logging
 from datetime import datetime, timedelta
-import pandas as pd
 
 logger = logging.getLogger('reports')
 

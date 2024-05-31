@@ -6,12 +6,15 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from reports.services import report_services, report_queries
 from django.db import connection, DatabaseError
 from rest_framework.views import APIView
+from users.services.utils import drf_schema
 from collections import defaultdict
 import logging
+from rest_framework import serializers
 from datetime import datetime, timedelta
-
 logger = logging.getLogger('reports')
 
+
+@drf_schema(serializer_name="DateSerializer")
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def sales_summary_report(request):
@@ -68,7 +71,7 @@ def sales_summary_report(request):
 
     return Response(response_data)
 
-
+@drf_schema(serializer_name="DateSerializer")
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def sales_collection_outstanding_report(request):
@@ -136,7 +139,7 @@ def sales_collection_outstanding_report(request):
 
     return Response(result)
 
-
+@drf_schema(serializer_name="DateSerializer")
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def product_wise_sales_summary(request):
@@ -169,7 +172,7 @@ def product_wise_sales_summary(request):
     conn.close()
     return Response(final_response)
 
-
+@drf_schema(serializer_name="DateSerializer")
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def weekly_summary(request):
@@ -237,6 +240,7 @@ def weekly_summary(request):
 
     return Response(team_sales_list)
 
+@drf_schema(serializer_name="DateSerializer")
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def collection_report(request):
@@ -286,6 +290,12 @@ def collection_report(request):
     
     return Response(result)
 
+@drf_schema(serializer_name="CustomerWiseOutstandingSerializer",
+            serializer_fields={
+                "outstanding_value": serializers.IntegerField(),
+                "team_name": serializers.CharField(),
+                "salesman": serializers.CharField()
+            })
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def customer_wise_outstanding(request):
@@ -324,7 +334,11 @@ def customer_wise_outstanding(request):
     # Return response with fetched data and total outstanding sum
     return Response({f"Customer wise {outstanding_value} Days O/S":formatted_data,"total_outstanding_sum": total_outstanding_sum})
 
-
+@drf_schema(serializer_name="CRUtilizationReportSerializer",
+            serializer_fields={
+                "team_name": serializers.CharField(),
+                "salesman": serializers.CharField()
+            })
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def cr_utilization_report(request):
@@ -405,6 +419,11 @@ def team_and_product_wise_report(request):
     return Response({"Team wise product wise report": data_by_cluster})
 
 
+@drf_schema(serializer_name="SalesmanProductWiseReportSerializer",
+            serializer_fields={
+                "team_name": serializers.CharField(),
+                "salesman": serializers.CharField()
+            })
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def salesman_and_product_wise_report(request):
@@ -457,6 +476,7 @@ def salesman_and_product_wise_report(request):
 
     return Response(formatted_data)
 
+@drf_schema(serializer_name="DateSerializer")
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def target_and_achieved_report(request):
@@ -529,7 +549,7 @@ def target_and_achieved_report(request):
 
     return Response(team_sales_summary_list)
 
-
+@drf_schema(serializer_name="DateSerializer")
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def welding_electrode_product_sales_report(request):
@@ -574,7 +594,7 @@ def welding_electrode_product_sales_report(request):
 
     return Response(response_data)
 
-
+@drf_schema(serializer_name="DateSerializer")
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def durastrong_tmt_product_sales_report(request):
@@ -619,6 +639,7 @@ def durastrong_tmt_product_sales_report(request):
 
     return Response(response_data)
 
+@drf_schema(serializer_name="DateSerializer")
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def sales_register_report(request):

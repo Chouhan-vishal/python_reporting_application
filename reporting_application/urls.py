@@ -25,7 +25,6 @@ urlpatterns = [
     re_path('^api/schema/swagger-ui/?$', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     re_path('^api/schema/redoc/?$', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     # Project URLs
-    re_path('^admin/?$', admin.site.urls),
     re_path("^api/users/?",include("users.urls")),
     # re_path("^api/reports/?",include("reports.urls")),
     path('api/reports/', include("reports.urls"))

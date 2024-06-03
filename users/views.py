@@ -14,7 +14,7 @@ from .services.utils import generate_otp, send_otp_email
 from datetime import datetime, timedelta
 from django.utils.timezone import now as aware_utcnow
 from django.db.models import Q
-
+from reports.services import report_services
 from rest_framework.views import APIView
 from rest_framework import status
 import pyotp
@@ -24,7 +24,8 @@ from .models import (
     OTP,
     TwoFactorAuthentication,
     ReportPermission,
-    UserActivityLog
+    UserActivityLog,
+    Hierarchy
 )
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, inline_serializer, OpenApiTypes, extend_schema_serializer
@@ -627,3 +628,56 @@ class UserSearch(APIView):
         except Exception as e:
             logger.error(f'Error during user search: {str(e)}')
             return response(FAILED, {ERROR: f'Error during user search: {str(e)}'}, HTTP_400_BAD_REQUEST)
+        
+
+class TeamNames(APIView):
+    permission_classes = [IsAdminUser, IsAuthenticated]
+
+    @extend_schema(
+        request=None,
+        responses={HTTP_200_OK: OpenApiTypes.OBJECT},
+        description="Get a list of team names."
+    )
+    def get(self, request):
+        """
+        Get a list of team names.
+
+        Args:
+            request (HttpRequest): Request object.
+
+        Returns:
+            Response: Returns a list of team names.
+        """
+        try:
+            conn = report_services.create_sql_server_connection()
+            cursor = conn.cursor()
+            # Assuming you execute the query with the provided start_date and end_date values
+            sql_query = "Select Distinct [Team Name] from tbl_TargetCustomers"
+            cursor.execute(sql_query)
+            results = cursor.fetchall()
+            team_names = [row[0] for row in results]
+            return Response({'team_names': team_names}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f'Error during team names retrieval: {str(e)}')
+            return Response({'error': 'Error during team names retrieval'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class ManagerList(APIView):
+    """
+    Return Manager Users.
+    Args:
+        request (HttpRequest): None
+    Returns:
+        Response: Returns All the User with hierarchy managers.
+    """
+    def get(self, request):
+        try:
+            managers_hierarchy = Hierarchy.objects.get(name='manager')
+            users_in_managers_hierarchy = User.objects.filter(hierarchy=managers_hierarchy)
+            serializer = UserSerializer(users_in_managers_hierarchy, many=True)
+            return response(SUCCESS, serializer.data, status=HTTP_200_OK)
+        except Exception as e:
+            logger.error(f'Error during manager names retrieval: {str(e)}')
+            return Response({'error': 'Error during manager names retrieval'}, status=status.HTTP_400_BAD_REQUEST)
+            

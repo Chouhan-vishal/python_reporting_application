@@ -3,7 +3,9 @@ import os
 import pyodbc
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-
+from users.models import UserActivityLog
+from rest_framework.permissions import BasePermission
+from rest_framework.exceptions import PermissionDenied
 load_dotenv()
 
 database = os.environ["SSLS_DATABASE_NAME"]
@@ -20,9 +22,7 @@ def create_sql_server_connection():
         return conn
 
     except pyodbc.Error as e:
-        # Handle any errors
-        print("Error accessing SQL Server:", e)
-        return None
+        raise Exception(f'error accessing SQL Server')
 
 
 def get_previous_date(end_date):
@@ -78,3 +78,37 @@ def get_monthly_date_ranges(num_months):
         date_ranges.append({'month': datetime(year, month, 1).strftime('%B'), 'start_date': start_date, 'end_date': end_date})
 
     return date_ranges
+
+
+def create_log(user, report_name):
+    activity_log = UserActivityLog.objects.create(user=user, report=report_name, log=f'{report_name} is viewed')
+    activity_log.save()
+
+class HasReportPermission(BasePermission):
+    message = "You do not have permission to view this report."
+    def has_permission(self, request, view):
+        report_name_to_permission_map = {
+            "Sales Summary Report": "sales_summary_report",
+            "Sales Collection Outstanding Report": "sales_collection_outstanding_report",
+            "Product Wise Sales Summary": "product_wise_sales_summary",
+            "Weekly Summary": "weekly_summary",
+            "Collection Report": "collection_report",
+            "Customer Wise Outstanding": "customer_wise_outstanding",
+            "Cr Utilization Report": "cr_utilization_report",
+            "Team And Product Wise Report": "team_and_product_wise_report",
+            "Salesman And Product Wise Report": "salesman_and_product_wise_report",
+            "Target And Achived Report": "target_and_achieved_report",
+            "Welding Electrode Product Report": "welding_electrode_product_sales_report",
+            "Durastrong Tmt Product Report": "durastrong_tmt_product_sales_report",
+            "Sales Register Report": "sales_register_report",
+            "Block Customers List Report": "block_customers_list_report",
+            "Target Customers Sales Report": "target_customer_sales_report",
+            "Product Wise Mom Report": "product_wise_month_on_month_report",
+            "Review Product Wise Report": "review_product_wise_report",
+            "All Customers Sales Report": "all_customers_mom_report",
+        }
+    
+        report_permission = report_name_to_permission_map.get(view.get_view_name()).lower().replace(" ","_")
+        if report_permission and hasattr(request.user, 'report_permissions'):
+            return request.user.report_permissions.reports_permission.get(report_permission, False)
+        raise PermissionDenied(self.message)

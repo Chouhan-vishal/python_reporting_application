@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='reportpermission',
             name='reports_permission',
-            field=models.JSONField(default=users.models.default_permission_set, verbose_name=dict),
+            field=models.JSONField(),
         ),
     ]

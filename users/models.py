@@ -36,6 +36,31 @@ class UserManager(BaseUserManager):
 
         user.set_password(password)
         user.save(using=self._db)
+        def manager_permission_set():
+            return {
+                "sales_summary_report": False,
+                "product_wise_sales_summary": False,
+                "sales_collection_outstanding_report": False,
+                "weekly_summary": False,
+                "collection_report": False,
+                "customer_wise_outstanding": False,
+                "team_and_product_wise_report": False,
+                "salesman_and_product_wise_report": False,
+                "target_and_achieved_report": False,
+                "target_customer_sales_report": False,
+                "all_customers_mom_report": False,
+                "welding_electrode_product_sales_report": False,
+                "durastrong_tmt_product_sales_report": False,
+                "review_product_wise_report": False,
+                "sales_register_report": False,
+                "block_customers_list_report": False,
+            }
+        def salesman_permission_set():
+            return {}
+        if hierarchy.name=='manager':
+            ReportPermission.objects.create(user=user, reports_permission=manager_permission_set())
+        elif hierarchy.name=='salesman':
+            ReportPermission.objects.create(user=user, reports_permission=salesman_permission_set())
         return user
 
     def create_superuser(self, email, phone_number, password=None):
@@ -54,7 +79,6 @@ class UserManager(BaseUserManager):
 
 class Hierarchy(models.Model):
     name = models.CharField(max_length=255)
-
     def __str__(self):
         return self.name
 
@@ -136,33 +160,9 @@ class TwoFactorAuthentication(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='multifactor_auth')
     secret_key = models.CharField(max_length=255)
     is_enabled = models.BooleanField(default=False)
-
-
-def default_permission_set():
-    return {
-        'sales_summary': False,
-        'product_sales_summary': False,
-        'sales_collection_outstanding_summary': False,
-        'weekly_report': False,
-        'collection_report': False,
-        'customer_outstanding_details': False,
-        'team_product_report': False,
-        'salesman_product_report': False,
-        'target_achieved_report': False,
-        'target_customer_sales_report': False,
-        'all_customer_sales_report': False,
-        'welding_electrodes_target_achieved_report': False,
-        'durastrong_tmt_target_achieved_report': False,
-        'product_review': False,
-        'salesman_review': False,
-        'product_monthly_sales': False,
-        'sales_register': False,
-        'loyalty_customer': False,
-        'block_customer': False,
-    }
 class ReportPermission(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='report_permissions')
-    reports_permission = models.JSONField(dict, default=default_permission_set)
+    reports_permission = models.JSONField(null=True)
     def __str__(self):
             return str(self.reports_permission)
         

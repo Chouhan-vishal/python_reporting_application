@@ -17,18 +17,19 @@ class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     last_login = serializers.DateTimeField(read_only=True)
-
+    reports_permission = serializers.JSONField(required=False)
 
     class Meta:
         model = User
         fields = ['id', 'emp_code', 'first_name', 'last_name', 'team_name', 'manager_name', 'password', 'is_active', 'is_admin', 'created_at', 'last_login',
-                  'email', 'hierarchy', "role", 'phone_number']
+                  'email', 'hierarchy', "role", 'phone_number', 'reports_permission']
         read_only_fields = ['created_at', 'last_login']
 
     def create(self, validated_data):
         with transaction.atomic():
             role = validated_data.pop('role', None)
             hierarchy_obj = Hierarchy.objects.filter(name=role).first()
+            reports_permission = validated_data.pop('reports_permission', None)
             is_admin = validated_data.get('is_admin', False)            
             if not hierarchy_obj:
                 raise serializers.ValidationError(f"No hierarchy found for role '{role}'")
@@ -36,7 +37,10 @@ class UserSerializer(serializers.ModelSerializer):
             user = User.objects.create_user(**validated_data)
             if user.is_admin:
                 TwoFactorAuthentication.objects.create(user=user)
-            ReportPermission.objects.create(user=user)
+            if reports_permission:
+                report_permission_obj = ReportPermission.objects.filter(user=user).first()
+                report_permission_obj.reports_permission.update(reports_permission)
+                report_permission_obj.save()
             return user
 
     def update(self, instance, validated_data):
@@ -57,6 +61,11 @@ class UserSerializer(serializers.ModelSerializer):
             instance.phone_number = validated_data.get('phone_number', instance.phone_number)
             instance.is_active = validated_data.get('is_active', instance.is_active)
             instance.is_admin = validated_data.get('is_admin', instance.is_admin)
+            reports_permission = validated_data.pop('reports_permission', None)
+            if reports_permission is not None:
+                if hasattr(instance, 'report_permissions'):
+                    instance.report_permissions.reports_permission.update(reports_permission)
+                    instance.report_permissions.save()
             instance.save()
             return instance
 
@@ -76,7 +85,6 @@ class UserActivityLogSerializer(serializers.ModelSerializer):
         representation = super().to_representation(instance)
         user_representation = representation.get('user')
         if user_representation:
-            # Filter the fields you want to return from the nested UserSerializer
             user_representation = {
                 'id': user_representation.get('id'),
                 'emp_code': user_representation.get('emp'),
@@ -117,13 +125,8 @@ class TwoFactorAuthenticationSerializer(serializers.Serializer):
         secret_key = data.get('secret_key')
         email = data.get('email')
         password = data.get('password')
-
-        # Your validation logic here
-        # For example, you can check if the OTP is a 6-digit number
         if not otp.isdigit() or len(otp) != 6:
             raise serializers.ValidationError("Invalid OTP format. OTP must be a 6-digit number.")
-
-        # Additional validation logic can be added as needed
 
         return data
 

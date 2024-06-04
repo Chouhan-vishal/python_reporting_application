@@ -656,10 +656,10 @@ class TeamNames(APIView):
             cursor.execute(sql_query)
             results = cursor.fetchall()
             team_names = [row[0] for row in results]
-            return Response({'team_names': team_names}, status=status.HTTP_200_OK)
+            return response(SUCCESS, {'team_names': team_names}, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during team names retrieval: {str(e)}')
-            return Response({'error': 'Error during team names retrieval'}, status=status.HTTP_400_BAD_REQUEST)
+            return response(SUCCESS, {'error': 'Error during team names retrieval'}, HTTP_400_BAD_REQUEST)
 
 
 
@@ -676,8 +676,8 @@ class ManagerList(APIView):
             managers_hierarchy = Hierarchy.objects.get(name='manager')
             users_in_managers_hierarchy = User.objects.filter(hierarchy=managers_hierarchy)
             serializer = UserSerializer(users_in_managers_hierarchy, many=True)
-            return response(SUCCESS, serializer.data, status=HTTP_200_OK)
+            return response(SUCCESS, serializer.data, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during manager names retrieval: {str(e)}')
-            return Response({'error': 'Error during manager names retrieval'}, status=status.HTTP_400_BAD_REQUEST)
+            return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)
             

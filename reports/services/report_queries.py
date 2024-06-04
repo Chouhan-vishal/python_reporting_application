@@ -590,20 +590,17 @@ def target_and_achieved_query(start_date, end_date, pre_day):
     ),
     Sales AS (
         SELECT      
-            ST.[Team Name],   
-            [Sales Person],
-            SUM([Qty(MTs)]) AS [Achv Qty], 
-            COUNT(DISTINCT CASE WHEN [Qty(MTs)] > 0 THEN SV.[Customer ID] ELSE NULL END) AS [Target Customer Reached],
-            ST.[Previous Date]
-        FROM SalesTeamCTE ST
-        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
-            ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
-            AND SV.[Item Details] <> 'Welding Electrodes'
-            AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
+            TC.[Team Name],
+            TC.[Sales Person],
+            SUM(SV.[Qty(MTs)]) AS [Achv Qty], 
+            COUNT(DISTINCT SV.[Customer ID]) AS [Target Customer Reached]
+        FROM [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
+        INNER JOIN [dbo].[tbl_TargetCustomers] TC WITH (NOLOCK)
+            ON SV.[Customer ID] = TC.[Customer ID]
+        WHERE SV.[Item Details] <> 'Welding Electrodes'
+        AND SV.[Voucher Date] BETWEEN '2024-6-1' AND '2024-6-4'
         GROUP BY 
-            ST.[Team Name],    
-            [Sales Person],
-            ST.[Previous Date]
+            TC.[Team Name], TC.[Sales Person]
     ),
     PreviousDateQty AS (
         SELECT

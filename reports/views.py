@@ -176,14 +176,10 @@ def product_wise_sales_summary(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def weekly_summary(request):
-    start_date = request.data.get("start_date", None)
-    end_date = request.data.get("end_date", None)
     today_is_monday = datetime.today().weekday() == 0
-    if not start_date or not end_date:
-        return Response({"error": "Please provide both start_date and end_date."}, status=400)
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
-    query = report_queries.weekly_report_query(start_date, end_date)
+    query = report_queries.weekly_report_query()
     cursor.execute(query)
     results = cursor.fetchall()
 
@@ -350,41 +346,18 @@ def cr_utilization_report(request):
     cursor.execute(sql_query)
 
     # Fetch data
-    data = cursor.fetchall()
+    results = cursor.fetchall()
     
     # Initialize a nested dictionary to hold the grouped data
-    grouped_data = defaultdict(lambda: defaultdict(list))
-
-    # Organize data by team name and sales person
-    for row in data:
-        team_name = row[0]
-        sales_person = row[1]
-        customer_data = {
-            'Customer ID': row[3],
-            'Customer Name': row[2],
-            'Target Qty (MTs)': row[4],
-            'CR limit': row[5],
-            'OS': row[6],
-            'Cr Utliz %': row[7]
-        }
-        grouped_data[team_name][sales_person].append(customer_data)
-    
-    # Format the grouped data into the desired structure
-    formatted_data = []
-    for team_name, sales_persons in grouped_data.items():
-        for sales_person, customers in sales_persons.items():
-            formatted_data.append({
-                'Team Name': team_name,
-                'Sales Person': sales_person,
-                'Customers': customers
-            })
+    data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
     
     # Closing the cursor and connection
     cursor.close()
     conn.close()
 
-    return Response(formatted_data)
+    return Response(data)
 
+# ================================== Not including ================================================
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def team_and_product_wise_report(request):
@@ -557,30 +530,36 @@ def welding_electrode_product_sales_report(request):
     end_date = request.data.get("end_date", None)
     if not start_date or not end_date:
         return Response({"error": "Please provide both start_date and end_date."}, status=400)
+
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
     sql_query = report_queries.welding_electrode_product_sales_query(start_date, end_date)
-    # Assuming you execute the query with the provided start_date and end_date values
     cursor.execute(sql_query)
     results = cursor.fetchall()
-    team_sales_summary = {}
+
     team_sales_summary = defaultdict(lambda: {
         'team_target_qty': 0,
         'team_sales_quantity': 0,
         'team_achieved%': 0,
         'sales_persons': []
     })
+
     for row in results:
         team_name = row[0]
         sales_person = row[1]
+        target_qty = row[2]
+        sales_quantity = row[3]
+        achieved_percentage = row[4]
+
         sales_summary = {
             'sales_person': sales_person,
-            'target_qty': row[2],
-            'sales_quantity': row[3],
-            'achieved%': row[4]
+            'target_qty': target_qty,
+            'sales_quantity': sales_quantity,
+            'achieved%': achieved_percentage
         }
-        team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty']
-        team_sales_summary[team_name]['team_sales_quantity'] += sales_summary['sales_quantity']
+
+        team_sales_summary[team_name]['team_target_qty'] += target_qty
+        team_sales_summary[team_name]['team_sales_quantity'] += sales_quantity
         team_sales_summary[team_name]['sales_persons'].append(sales_summary)
 
     for team_name, team_summary in team_sales_summary.items():
@@ -588,7 +567,18 @@ def welding_electrode_product_sales_report(request):
         team_sales_qty = team_summary['team_sales_quantity']
         if team_target_qty != 0:
             team_summary['team_achieved%'] = round((team_sales_qty / team_target_qty) * 100, 2)
-    response_data = {"welding_electrode_product_sales_report": dict(team_sales_summary)}
+
+    # Convert the summary dictionary to the desired list format
+    response_data = []
+    for team_name, team_summary in team_sales_summary.items():
+        response_data.append({
+            'team_name': team_name,
+            'team_target_qty': team_summary['team_target_qty'],
+            'team_sales_quantity': team_summary['team_sales_quantity'],
+            'team_achieved%': team_summary['team_achieved%'],
+            'sales_persons': team_summary['sales_persons']
+        })
+
     cursor.close()
     conn.close()
 
@@ -602,30 +592,36 @@ def durastrong_tmt_product_sales_report(request):
     end_date = request.data.get("end_date", None)
     if not start_date or not end_date:
         return Response({"error": "Please provide both start_date and end_date."}, status=400)
+
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
     sql_query = report_queries.durastrong_tmt_product_sales_query(start_date, end_date)
-    # Assuming you execute the query with the provided start_date and end_date values
     cursor.execute(sql_query)
     results = cursor.fetchall()
-    team_sales_summary = {}
+
     team_sales_summary = defaultdict(lambda: {
         'team_target_qty': 0,
         'team_sales_quantity': 0,
         'team_achieved%': 0,
         'sales_persons': []
     })
+
     for row in results:
         team_name = row[0]
         sales_person = row[1]
+        target_qty = row[2]
+        sales_quantity = row[3]
+        achieved_percentage = row[4]
+
         sales_summary = {
             'sales_person': sales_person,
-            'target_qty': row[2],
-            'sales_quantity': row[3],
-            'achieved%': row[4]
+            'target_qty': target_qty,
+            'sales_quantity': sales_quantity,
+            'achieved%': achieved_percentage
         }
-        team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty']
-        team_sales_summary[team_name]['team_sales_quantity'] += sales_summary['sales_quantity']
+
+        team_sales_summary[team_name]['team_target_qty'] += target_qty
+        team_sales_summary[team_name]['team_sales_quantity'] += sales_quantity
         team_sales_summary[team_name]['sales_persons'].append(sales_summary)
 
     for team_name, team_summary in team_sales_summary.items():
@@ -633,7 +629,18 @@ def durastrong_tmt_product_sales_report(request):
         team_sales_qty = team_summary['team_sales_quantity']
         if team_target_qty != 0:
             team_summary['team_achieved%'] = round((team_sales_qty / team_target_qty) * 100, 2)
-    response_data = {"durastrong_tmt_product_sales_report": dict(team_sales_summary)}
+
+    # Convert the summary dictionary to the desired list format
+    response_data = []
+    for team_name, team_summary in team_sales_summary.items():
+        response_data.append({
+            'team_name': team_name,
+            'team_target_qty': team_summary['team_target_qty'],
+            'team_sales_quantity': team_summary['team_sales_quantity'],
+            'team_achieved%': team_summary['team_achieved%'],
+            'sales_persons': team_summary['sales_persons']
+        })
+
     cursor.close()
     conn.close()
 
@@ -672,18 +679,18 @@ def block_customers_list_report(request):
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def target_customers_mom_report(request):
+def all_customers_mom_report(request):
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
     month_count = request.data.get("month_count", None)
     if not month_count:
-        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+        return Response({"error": "Please provide both Month count."}, status=400)
     date_ranges = report_services.get_monthly_date_ranges(month_count)
     result = {}
 
     for _, item in enumerate(date_ranges):
         # Assuming you execute the query with the provided start_date and end_date values
-        sql_query = report_queries.target_customers_mom_query(item['start_date'], item['end_date'])
+        sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'])
         cursor.execute(sql_query)
         results = cursor.fetchall()
         data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]

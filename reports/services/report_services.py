@@ -95,7 +95,6 @@ class HasReportPermission(BasePermission):
             "Collection Report": "collection_report",
             "Customer Wise Outstanding": "customer_wise_outstanding",
             "Cr Utilization Report": "cr_utilization_report",
-            "Team And Product Wise Report": "team_and_product_wise_report",
             "Salesman And Product Wise Report": "salesman_and_product_wise_report",
             "Target And Achieved Report": "target_and_achieved_report",
             "Welding Electrode Product Sales Report": "welding_electrode_product_sales_report",

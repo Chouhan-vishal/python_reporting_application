@@ -758,16 +758,40 @@ def all_customers_mom_report(request):
         if not month_count:
             return Response({"error": "Please provide both Month count."}, status=400)
         date_ranges = report_services.get_monthly_date_ranges(month_count)
-        result = {}
+
+        # list to hold the aggregated data
+        result = []
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
             sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'])
             cursor.execute(sql_query)
             results = cursor.fetchall()
-            data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
             month = item['month']
-            result[month] = data
+            
+            # Process the results
+            for row in results:
+                sales_person = row[0]
+                customer_name = row[1]
+                achv_qty = row[2]
+                
+                # Find the existing entry for the sales person and customer, if it exists
+                entry = next((entry for entry in result if entry["Sales Person"] == sales_person and entry["Customer Name"] == customer_name), None)
+                
+                if not entry:
+                    # Create a new entry if it doesn't exist
+                    entry = {
+                        "Sales Person": sales_person,
+                        "Customer Name": customer_name,
+                        "month_data": []
+                    }
+                    result.append(entry)
+                
+                # Append the monthly data
+                entry["month_data"].append({
+                    "month_name": month,
+                    "achvd_qty": achv_qty
+                })
         report_services.create_log(user=request.user,report_name=REPORT_NAME)
         return response(SUCCESS, result, HTTP_200_OK)
     except Exception as e:
@@ -855,16 +879,39 @@ def target_customer_sales_report(request):
         if not month_count:
             return Response({"error": "Please provide both start_date and end_date."}, status=400)
         date_ranges = report_services.get_monthly_date_ranges(month_count)
-        result = {}
+
+        # Dictionary to hold the aggregated data
+        aggregated_result = {}
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
             sql_query = report_queries.target_customers_sales_query(item['start_date'], item['end_date'])
             cursor.execute(sql_query)
             results = cursor.fetchall()
-            data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
             month = item['month']
-            result[month] = data
+            
+            # Process the results
+            for row in results:
+                customer_name = row[0]  # Assuming Customer Name is the first column
+                target_qty = row[1]     # Assuming Target Qty is the second column
+                achv_qty = row[2]       # Assuming Achv Qty is the third column
+                
+                # Initialize the customer entry if not already present
+                if customer_name not in aggregated_result:
+                    aggregated_result[customer_name] = {
+                        "Customer Name": customer_name,
+                        "Target Qty": target_qty,
+                        "month_data": []
+                    }
+                
+                # Append the monthly data
+                aggregated_result[customer_name]["month_data"].append({
+                    "month_name": month,
+                    "achvd_qty": achv_qty
+                })
+
+        # Convert aggregated result to the desired format
+        final_result = list(aggregated_result.values())
         report_services.create_log(user=request.user,report_name=REPORT_NAME)
         return response(SUCCESS, result, HTTP_200_OK)
     except Exception as e:

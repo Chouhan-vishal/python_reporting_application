@@ -97,15 +97,15 @@ class HasReportPermission(BasePermission):
             "Cr Utilization Report": "cr_utilization_report",
             "Team And Product Wise Report": "team_and_product_wise_report",
             "Salesman And Product Wise Report": "salesman_and_product_wise_report",
-            "Target And Achived Report": "target_and_achieved_report",
-            "Welding Electrode Product Report": "welding_electrode_product_sales_report",
-            "Durastrong Tmt Product Report": "durastrong_tmt_product_sales_report",
+            "Target And Achieved Report": "target_and_achieved_report",
++           "Welding Electrode Product Sales Report": "welding_electrode_product_sales_report",
++           "Durastrong Tmt Product Sales Report": "durastrong_tmt_product_sales_report",
             "Sales Register Report": "sales_register_report",
             "Block Customers List Report": "block_customers_list_report",
             "Target Customers Sales Report": "target_customer_sales_report",
             "Product Wise Mom Report": "product_wise_month_on_month_report",
             "Review Product Wise Report": "review_product_wise_report",
-            "All Customers Sales Report": "all_customers_mom_report",
+            "All Customers Mom Report": "all_customers_mom_report",
         }
     
         report_permission = report_name_to_permission_map.get(view.get_view_name()).lower().replace(" ","_")

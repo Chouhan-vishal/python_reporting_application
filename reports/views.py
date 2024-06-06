@@ -810,7 +810,7 @@ def product_wise_month_on_month_report(request):
         if not month_count:
             return Response({"error": "Please provide both start_date and end_date."}, status=400)
         date_ranges = report_services.get_monthly_date_ranges(month_count)
-        result = {}
+        intermediate_result = {}
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
@@ -819,9 +819,25 @@ def product_wise_month_on_month_report(request):
             results = cursor.fetchall()
             data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
             month = item['month']
-            result[month] = data
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, result, HTTP_200_OK)
+
+            for record in data:
+                item_category = record['item_category']
+                achvd_qty = record['achvd_qty']
+                
+                if item_category not in intermediate_result:
+                    intermediate_result[item_category] = {}
+                
+                intermediate_result[item_category][month] = achvd_qty
+
+        final_result = []
+
+        for item_category, months_data in intermediate_result.items():
+            final_result.append({
+                "item_category": item_category,
+                "month_data": months_data
+            })
+        # report_services.create_log(user=request.user,report_name=REPORT_NAME)
+        return response(SUCCESS, final_result, HTTP_200_OK)
     except Exception as e:
         logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
         return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
@@ -862,7 +878,7 @@ def review_product_wise_report(request):
                 }
                 team_products[product] = product_dict
             result.append({team: team_products})
-        # report_services.create_log(user=request.user,report_name=REPORT_NAME)
+        report_services.create_log(user=request.user,report_name=REPORT_NAME)
         return response(SUCCESS, result, HTTP_200_OK)
     except Exception as e:
         logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")

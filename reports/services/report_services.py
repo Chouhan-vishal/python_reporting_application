@@ -102,9 +102,10 @@ class HasReportPermission(BasePermission):
             "Sales Register Report": "sales_register_report",
             "Block Customers List Report": "block_customers_list_report",
             "Target Customer Sales Report": "target_customer_sales_report",
-            "Product Wise Mom Report": "product_wise_month_on_month_report",
+            "Product Wise Month On Month Report": "product_wise_month_on_month_report",
             "Review Product Wise Report": "review_product_wise_report",
             "All Customers Mom Report": "all_customers_mom_report",
+            "Review Salesman Wise Data": "review_salesman_wise_data"
         }
     
         report_permission = report_name_to_permission_map.get(view.get_view_name()).lower().replace(" ","_")

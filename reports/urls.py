@@ -20,4 +20,5 @@ urlpatterns = [
     path('product-wise-mom-report/', views.product_wise_month_on_month_report),
     path('review-product-wise-report/', views.review_product_wise_report),
     path('all-customers-sales-report/', views.all_customers_mom_report),
+    path('review-salesman-wise-report/', views.review_salesman_wise_data),
 ]

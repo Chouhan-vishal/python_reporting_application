@@ -933,3 +933,81 @@ def target_customer_sales_report(request):
     except Exception as e:
         logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
         return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated ,HasReportPermission])
+def review_salesman_wise_data(request):
+    try:
+        REPORT_NAME = "Review SalesMan Wise Report"
+        conn = report_services.create_sql_server_connection()
+        cursor = conn.cursor()
+        # Assuming you execute the query with the provided start_date and end_date values
+        sql_query1 = report_queries.review_salesman_wise_query1()
+        cursor.execute(sql_query1)
+        results1 = cursor.fetchall()
+        query1_data = [dict(zip([column[0] for column in cursor.description], row)) for row in results1]
+        
+        # Second Query Execution based on month_count
+        month_count = request.data.get("month_count", None)
+        if not month_count:
+            return Response({"error": "Please provide month_count."}, status=HTTP_400_BAD_REQUEST)
+        
+        date_ranges = report_services.get_monthly_date_ranges(month_count)
+        query2_data = defaultdict(list)
+
+        for item in date_ranges:
+            sql_query2 = report_queries.review_salesman_wise_query2(item['start_date'], item['end_date'])
+            cursor.execute(sql_query2)
+            results2 = cursor.fetchall()
+            data2 = [dict(zip([column[0] for column in cursor.description], row)) for row in results2]
+            month = item['month']
+            query2_data[month].extend(data2)
+        
+        # Combine the data
+        teams = defaultdict(lambda: {
+            "team_target_qty": 0,
+            "team_TargetCustomerCount": 0,
+            "teamTargetCustomerReached": 0,
+            "team_above_25_days_os": 0,
+            "sales_persons": []
+        })
+
+        for q1 in query1_data:
+            team_name = q1["Team Name"]
+            sales_person = q1["Sales Person"]
+            teams[team_name]["team_target_qty"] += q1["Target Qty"]
+            teams[team_name]["team_TargetCustomerCount"] += q1["Target Customer Count"]
+            teams[team_name]["teamTargetCustomerReached"] += q1["Target Customer Reached"]
+            teams[team_name]["team_above_25_days_os"] += q1["Above 25 Days Outstanding"]
+            
+            # Initialize month_data
+            month_data = []
+            for month, month_results in query2_data.items():
+                for q2 in month_results:
+                    if q2["Team Name"] == team_name and q2["Sales Person"] == sales_person:
+                        month_data.append({month: q2["Achv Qty"]})
+
+            sales_person_data = {
+                "sales_person": sales_person,
+                "target_qty": q1["Target Qty"],
+                "Target CustomerCount": q1["Target Customer Count"],
+                "Target CustomerReached": q1["Target Customer Reached"],
+                "above_25_days_os": q1["Above 25 Days Outstanding"],
+                "month_data": month_data
+            }
+            
+            teams[team_name]["sales_persons"].append(sales_person_data)
+        
+        # Format the combined data into a list
+        combined_data = []
+        for team_name, team_data in teams.items():
+            team_data["team_name"] = team_name
+            combined_data.append(team_data)
+
+        # Log the report creation
+        report_services.create_log(user=request.user, report_name=REPORT_NAME)
+    
+        return response(SUCCESS, combined_data, HTTP_200_OK)
+    except Exception as e:
+        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
+        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)

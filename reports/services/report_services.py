@@ -101,7 +101,7 @@ class HasReportPermission(BasePermission):
             "Durastrong Tmt Product Sales Report": "durastrong_tmt_product_sales_report",
             "Sales Register Report": "sales_register_report",
             "Block Customers List Report": "block_customers_list_report",
-            "Target Customers Sales Report": "target_customer_sales_report",
+            "Target Customer Sales Report": "target_customer_sales_report",
             "Product Wise Mom Report": "product_wise_month_on_month_report",
             "Review Product Wise Report": "review_product_wise_report",
             "All Customers Mom Report": "all_customers_mom_report",

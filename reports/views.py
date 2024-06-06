@@ -852,7 +852,7 @@ def review_product_wise_report(request):
             data[team_name][product_cluster]["Months"][month] = float(achv_qty)
 
         # Convert the data to the desired format
-        result = {}
+        result = []
         for team, products in data.items():
             team_products = {}
             for product, product_data in products.items():
@@ -861,9 +861,9 @@ def review_product_wise_report(request):
                     "Months": dict(product_data["Months"])
                 }
                 team_products[product] = product_dict
-            result[team] = team_products
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, data, HTTP_200_OK)
+            result.append({team: team_products})
+        # report_services.create_log(user=request.user,report_name=REPORT_NAME)
+        return response(SUCCESS, result, HTTP_200_OK)
     except Exception as e:
         logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
         return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)

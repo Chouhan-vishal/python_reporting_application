@@ -913,7 +913,7 @@ def target_customer_sales_report(request):
         # Convert aggregated result to the desired format
         final_result = list(aggregated_result.values())
         report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, result, HTTP_200_OK)
+        return response(SUCCESS, final_result, HTTP_200_OK)
     except Exception as e:
         logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
         return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)

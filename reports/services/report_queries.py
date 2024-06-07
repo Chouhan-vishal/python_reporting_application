@@ -68,9 +68,15 @@ def sales_summary_query(start_date, end_date, pre_date, team_name= None):
     return sql_query
 
 
-def sales_collection_outstanding_summary(pre_date, team_name):
+def sales_collection_outstanding_summary(pre_date, user):
+    sub_query = 'WHERE ST.[Team Name] IS NOT NULL'
+    if user.hierarchy.name == 'salesman':
+        first_name = user.first_name
+        sub_query = f"""
+        WHERE ST.[Team Name] IS NOT NULL
+        AND (LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"""
     sql_query = f"""
-       WITH SalesTeam AS (
+        WITH SalesTeam AS (
             SELECT DISTINCT  
                 ST.[Team Name],   
                 ST.[Sales Person]
@@ -159,13 +165,13 @@ def sales_collection_outstanding_summary(pre_date, team_name):
             ON ST.[Team Name] = O.[Team Name] AND ST.[Sales Person] = O.[Sales Person]
         LEFT JOIN PreDaySales PDS
             ON ST.[Team Name] = PDS.[Team Name] AND ST.[Sales Person] = PDS.[Sales Person]
-        WHERE ST.[Team Name] IS NOT NULL
+        {sub_query}
         ORDER BY ST.[Team Name], ST.[Sales Person];
     """
     return sql_query
 
 
-def product_wise_sales_summary_query(start_date, end_date, pre_date,team_name):
+def product_wise_sales_summary_query(start_date, end_date, pre_date, team_name = None):
     sub_query = ""
     sub_query2 = ""
     if team_name:
@@ -235,8 +241,14 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date,team_name):
     """
     return sql_query
 
-def weekly_report_query():
-    sql_query = """
+def weekly_report_query(user):
+    sub_query = 'WHERE ST.[Team Name] IS NOT NULL'
+    if user.hierarchy.name == 'salesman':
+        first_name = user.first_name
+        sub_query = f"""
+        WHERE ST.[Team Name] IS NOT NULL
+        AND (LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"""
+    sql_query = f"""
     DECLARE @WeekStartDayMonday DATE, @WeekEndDaySaturday DATE;
 
     SELECT  
@@ -348,34 +360,46 @@ def weekly_report_query():
     LEFT JOIN Outstandings O ON ST.[Sales Person] = O.[Sales Person]
     LEFT JOIN WeeklySales WS ON ST.[Sales Person] = WS.[Sales Person] AND ST.[Team Name] = WS.[Team Name]
 
-    WHERE ST.[Team Name] IS NOT NULL
+    {sub_query}
     ORDER BY ST.[Team Name] ;
 
         """
     return sql_query
 
-def collection_report_by_date_range(date):
+def collection_report_by_date_range(date, user):
+    # Define the initial sub_query
+    sub_query = "AND ST.[Team Name] IS NOT NULL"
 
+    # Modify the sub_query if the user is a salesman
+    if user.hierarchy.name == 'salesman':
+        first_name = user.first_name.lower()
+        sub_query = f"""
+        AND LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%'"""
+
+    # Define the SQL query
     sql_query = f"""
         SELECT st.[Team Name],
             st.[Sales Person],
-        SUM(rr.[Credit Amount]) AS TotalCreditAmount
+            SUM(rr.[Credit Amount]) AS TotalCreditAmount
         FROM tbl_SalesTeam st
         JOIN tbl_ReceiptRegister rr ON st.[Sales Person] = rr.[Sales Person -2]
         WHERE rr.[Receipt Date] = '{date}'
+        {sub_query}
         GROUP BY st.[Team Name],
-        st.[Sales Person]
-        ORDER by 1;
+                st.[Sales Person]
+        ORDER BY 1;
     """
     return sql_query
 
 
-def customer_wise_outstanding_query(outstanding_value, team_name, salesman):
-    sub_query = ''
-    if team_name:
-        sub_query = f"AND ST.[Team Name] = '{team_name}'"
-        if salesman:
-            sub_query += f"AND ST.[Sales Person] = '{salesman}'"
+def customer_wise_outstanding_query(outstanding_value, user):
+    sub_query = "AND ST.[Team Name] IS NOT NULL"
+
+    # Modify the sub_query if the user is a salesman
+    if user.hierarchy.name == 'salesman':
+        first_name = user.first_name.lower()
+        sub_query = f"""
+        AND LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%'"""
     sql_query = f"""
         SELECT  
             OS.[Branch Name],
@@ -408,12 +432,13 @@ def customer_wise_outstanding_query(outstanding_value, team_name, salesman):
 
 
 
-def cr_utilization_report_query(team_name, salesman):
-    sub_query = ''
-    if team_name:
-        sub_query = f"AND t1.[Team Name] = '{team_name}'"
-        if salesman:
-            sub_query += f"AND t1.[Sales Person] = '{salesman}'"
+def cr_utilization_report_query(user):
+    sub_query = "AND t1.[Team Name] IS NOT NULL"
+    # Modify the sub_query if the user is a salesman
+    if user.hierarchy.name == 'salesman':
+        first_name = user.first_name.lower()
+        sub_query = f"""
+        AND LOWER(t1.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%'"""
     sql_query = f"""
         SELECT 
             t1."Team Name", 
@@ -523,12 +548,14 @@ def team_and_product_wise_query(start_date, end_date, pre_date):
     return sql_query
 
 
-def salesman_and_product_wise_query(team_name, salesman):
-    sub_query = ''
-    if team_name:
-        sub_query = f"AND ST.[Team Name] = '{team_name}'"
-        if salesman:
-            sub_query += f"AND ST.[Sales Person] = '{salesman}'"
+def salesman_and_product_wise_query(user):
+    
+    sub_query = "AND ST.[Team Name] IS NOT NULL"
+    # Modify the sub_query if the user is a salesman
+    if user.hierarchy.name == 'salesman':
+        first_name = user.first_name.lower()
+        sub_query = f"""
+        AND LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%'"""
     sql_query = f"""
     WITH Sales AS (
         SELECT          
@@ -579,7 +606,13 @@ def salesman_and_product_wise_query(team_name, salesman):
      """
     return sql_query
 
-def target_and_achieved_query(start_date, end_date, pre_day):
+def target_and_achieved_query(start_date, end_date, pre_day, user):
+    sub_query = "WHERE ST.[Team Name] IS NOT NULL"
+    # Modify the sub_query if the user is a salesman
+    if user.hierarchy.name == 'salesman':
+        first_name = user.first_name.lower()
+        sub_query = f"""
+        WHERE LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%'"""
     sql_query = f"""
     WITH SalesTeamCTE AS (
         SELECT   
@@ -615,7 +648,7 @@ def target_and_achieved_query(start_date, end_date, pre_day):
         INNER JOIN [dbo].[tbl_TargetCustomers] TC WITH (NOLOCK)
             ON SV.[Customer ID] = TC.[Customer ID]
         WHERE SV.[Item Details] <> 'Welding Electrodes'
-        AND SV.[Voucher Date] BETWEEN '2024-6-1' AND '2024-6-4'
+        AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
         GROUP BY 
             TC.[Team Name], TC.[Sales Person]
     ),
@@ -659,6 +692,7 @@ def target_and_achieved_query(start_date, end_date, pre_day):
         ISNULL((SELECT [Target Customer Count] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Count],
         ISNULL((SELECT [Target Customer Reached] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Reached]
     FROM SalesTeamCTE ST
+    {sub_query}
     ORDER BY ST.[Team Name], ST.[Sales Person];
     """
     return sql_query
@@ -833,7 +867,14 @@ def block_customers_list_query():
     return sql_query
 
 
-def all_customers_sales_query(start_date, end_date):
+def all_customers_sales_query(start_date, end_date, user):
+    
+    sub_query = "AND ST.[Team Name] IS NOT NULL"
+    # Modify the sub_query if the user is a salesman
+    if user.hierarchy.name == 'salesman':
+        first_name = user.first_name.lower()
+        sub_query = f"""
+        AND LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%'"""
     sql_query = f"""
     WITH SalesTeamCTE AS (
         SELECT   
@@ -890,6 +931,7 @@ def all_customers_sales_query(start_date, end_date):
         AND S.[Sales Person] = ST.[Sales Person] 
         AND S.[Customer Name] = TC.[Customer Name]
     WHERE TC.[Customer Name] IS NOT NULL
+    {sub_query}
     ORDER BY
         TC.[Customer Name],
         ST.[Sales Person];
@@ -1007,7 +1049,13 @@ def review_product_wise_query(month_count):
 
     return sql_query
 
-def target_customers_sales_query(start_date, end_date):
+def target_customers_sales_query(start_date, end_date, user):
+    sub_query = "WHERE ST.[Team Name] IS NOT NULL"
+    # Modify the sub_query if the user is a salesman
+    if user.hierarchy.name == 'salesman':
+        first_name = user.first_name.lower()
+        sub_query = f"""
+        WHERE LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%'"""
     sql_query = f"""
     WITH SalesTeamCTE AS (
         SELECT   
@@ -1060,6 +1108,7 @@ def target_customers_sales_query(start_date, end_date):
         ON TC.[Team Name] = ST.[Team Name] AND TC.[Sales Person] = ST.[Sales Person]
     LEFT JOIN Sales S 
         ON S.[Team Name] = ST.[Team Name] AND S.[Sales Person] = ST.[Sales Person] AND S.[Customer Name] = TC.[Customer Name]
+    {sub_query}
     ORDER BY TC.[Customer Name];
     """
     return sql_query

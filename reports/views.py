@@ -85,6 +85,7 @@ def sales_summary_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def sales_collection_outstanding_report(request):
     try:
+        user = request.user
         REPORT_NAME = 'Sales Collection Outstanding Report'
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -94,7 +95,7 @@ def sales_collection_outstanding_report(request):
         pre_date = report_services.get_previous_date(end_date)
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.sales_collection_outstanding_summary(pre_date)
+        query = report_queries.sales_collection_outstanding_summary(pre_date, user)
         cursor.execute(query)
 
         results = cursor.fetchall()
@@ -197,11 +198,12 @@ def product_wise_sales_summary(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def weekly_summary(request):
     try:
+        user = request.user
         REPORT_NAME = "Weekly Summary Report"
         today_is_monday = datetime.today().weekday() == 0
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.weekly_report_query()
+        query = report_queries.weekly_report_query(user)
         cursor.execute(query)
         results = cursor.fetchall()
 
@@ -266,6 +268,7 @@ def weekly_summary(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def collection_report(request):
     try:
+        user = request.user
         REPORT_NAME = "Collection Report"
         start_date_str = request.data.get("start_date")
         end_date_str = request.data.get("end_date")
@@ -282,7 +285,7 @@ def collection_report(request):
         
         current_date = start_date
         while current_date <= end_date:
-            query = report_queries.collection_report_by_date_range(current_date)
+            query = report_queries.collection_report_by_date_range(current_date, user)
             cursor.execute(query)
             data = cursor.fetchall()
             
@@ -326,6 +329,7 @@ def collection_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def customer_wise_outstanding(request):
     try:
+        user = request.user
         REPORT_NAME = 'Customer Wise Outstanding Report'
         outstanding_value = request.data.get("outstanding")
         team_name = request.data.get("team_name")
@@ -337,7 +341,7 @@ def customer_wise_outstanding(request):
 
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, team_name, salesman)
+        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, user)
         cursor.execute(sql_query)
 
         # Fetch data
@@ -375,12 +379,13 @@ def customer_wise_outstanding(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def cr_utilization_report(request):
     try:
+        user = request.user
         REPORT_NAME = "CR Utilization Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         team_name = request.data.get("team_name")
         salesman = request.data.get("salesman")
-        sql_query = report_queries.cr_utilization_report_query(team_name, salesman)
+        sql_query = report_queries.cr_utilization_report_query(user)
         cursor.execute(sql_query)
     
         # Fetch data
@@ -441,13 +446,14 @@ def team_and_product_wise_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def salesman_and_product_wise_report(request):
     try:
+        user = request.user
         REPORT_NAME = "Salesman and Product Wise Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         team_name = request.data.get("team_name")
         salesman = request.data.get("salesman")
 
-        sql_query = report_queries.salesman_and_product_wise_query(team_name, salesman)
+        sql_query = report_queries.salesman_and_product_wise_query(user)
         cursor.execute(sql_query)
 
         # Fetching all the rows
@@ -499,6 +505,7 @@ def salesman_and_product_wise_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def target_and_achieved_report(request):
     try:
+        user =  request.user
         REPORT_NAME = 'Target and Achieved Report'
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -507,7 +514,7 @@ def target_and_achieved_report(request):
         pre_date = report_services.get_previous_date(end_date)
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.target_and_achieved_query(start_date, end_date, pre_date)
+        sql_query = report_queries.target_and_achieved_query(start_date, end_date, pre_date, user)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
@@ -751,7 +758,8 @@ def block_customers_list_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def all_customers_mom_report(request):
     try:
-        REPORT_NAME = "All Customers MOM Report"
+        user = request.user
+        REPORT_NAME = "All Customers Month on Month Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         month_count = request.data.get("month_count", None)
@@ -764,7 +772,7 @@ def all_customers_mom_report(request):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'])
+            sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'],user)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             month = item['month']
@@ -888,6 +896,7 @@ def review_product_wise_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def target_customer_sales_report(request):
     try:
+        user = request.user
         REPORT_NAME = "Target Customer Sales Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -901,7 +910,7 @@ def target_customer_sales_report(request):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.target_customers_sales_query(item['start_date'], item['end_date'])
+            sql_query = report_queries.target_customers_sales_query(item['start_date'], item['end_date'], user)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             month = item['month']

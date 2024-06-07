@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from users.models import UserActivityLog
 from rest_framework.permissions import BasePermission
 from rest_framework.exceptions import PermissionDenied
+from .report_queries import * 
 load_dotenv()
 
 database = os.environ["SSLS_DATABASE_NAME"]
@@ -78,7 +79,17 @@ def get_monthly_date_ranges(num_months):
         date_ranges.append({'month': datetime(year, month, 1).strftime('%B'), 'start_date': start_date, 'end_date': end_date})
 
     return date_ranges
-
+def get_teamnames_for_user(user):
+    conn = create_sql_server_connection()
+    cursor = conn.cursor()
+    query = get_team_names()
+    full_name = str(user.first_name)+ ' '+ str(user.last_name)
+    cursor.execute(query, ('%' + full_name.lower() + '%',))
+    results = cursor.fetchall()
+    team_names = [row[0] for row in results]
+    cursor.close()
+    conn.close()
+    return tuple(team_names)
 
 def create_log(user, report_name):
     activity_log = UserActivityLog.objects.create(user=user, report=report_name, log=f'{report_name} is viewed')

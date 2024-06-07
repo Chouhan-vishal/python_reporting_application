@@ -321,7 +321,7 @@ class Profile(APIView):
         try:
             user = request.user
             permitted_report_obj = ReportPermission.objects.filter(user=user).first()
-            accessible_reports_list = [k for k,v in permitted_report_obj.reports_permission.items() if v==True]
+            accessible_reports_list = [{"path":f"/{k}".replace("_", "-"), "title":" ".join([str(k).capitalize() for k in str(k).split("_")])} for k,v in permitted_report_obj.reports_permission.items() if v==True]
             serializer = UserSerializer(user)
             data = serializer.data
             data['accessible_reports'] = accessible_reports_list

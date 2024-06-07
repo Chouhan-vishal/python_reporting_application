@@ -88,27 +88,31 @@ class HasReportPermission(BasePermission):
     message = "You do not have permission to view this report."
     def has_permission(self, request, view):
         report_name_to_permission_map = {
-            "Sales Summary Report": "sales_summary_report",
-            "Sales Collection Outstanding Report": "sales_collection_outstanding_report",
+            "Sales Summary Report": "sales_summary",
+            "Sales Collection Outstanding Report": "sales_collection_outstanding",
             "Product Wise Sales Summary": "product_wise_sales_summary",
             "Weekly Summary": "weekly_summary",
-            "Collection Report": "collection_report",
+            "Collection Report": "collection",
             "Customer Wise Outstanding": "customer_wise_outstanding",
-            "Cr Utilization Report": "cr_utilization_report",
-            "Salesman And Product Wise Report": "salesman_and_product_wise_report",
-            "Target And Achieved Report": "target_and_achieved_report",
-            "Welding Electrode Product Sales Report": "welding_electrode_product_sales_report",
-            "Durastrong Tmt Product Sales Report": "durastrong_tmt_product_sales_report",
-            "Sales Register Report": "sales_register_report",
-            "Block Customers List Report": "block_customers_list_report",
-            "Target Customer Sales Report": "target_customer_sales_report",
-            "Product Wise Month On Month Report": "product_wise_month_on_month_report",
-            "Review Product Wise Report": "review_product_wise_report",
-            "All Customers Mom Report": "all_customers_mom_report",
+            "Cr Utilization Report": "cr_utilization",
+            "Salesman And Product Wise Report": "salesman_and_product_wise",
+            "Target And Achieved Report": "target_and_achieved",
+            "Welding Electrode Product Sales Report": "welding_electrode",
+            "Durastrong Tmt Product Sales Report": "durastrong_tmt_product_sales",
+            "Sales Register Report": "sales_register",
+            "Block Customers List Report": "block_customers_list",
+            "Target Customer Sales Report": "target_customer_sales",
+            "Product Wise Month On Month Report": "product_wise_month_sales",
+            "Review Product Wise Report": "review_product_wise",
+            "All Customers Mom Report": "all_customers_sales",
             "Review Salesman Wise Data": "review_salesman_wise_data"
         }
     
-        report_permission = report_name_to_permission_map.get(view.get_view_name()).lower().replace(" ","_")
+        report_permission = report_name_to_permission_map.get(view.get_view_name())
+        if report_permission is not None:
+            report_permission = report_permission.lower().replace(" ","_")
+        else:
+            raise PermissionDenied("Invalid key for the report permission either the key is not added or the view name is incorrect. please contact backend developer.")
         if report_permission and hasattr(request.user, 'report_permissions'):
             return request.user.report_permissions.reports_permission.get(report_permission, False)
         raise PermissionDenied(self.message)

@@ -840,9 +840,10 @@ def product_wise_month_on_month_report(request):
         final_result = []
 
         for item_category, months_data in intermediate_result.items():
+            month_list = [{month: value} for month, value in months_data.items()]
             final_result.append({
                 "item_category": item_category,
-                "month_data": months_data
+                "month_data": month_list
             })
         # report_services.create_log(user=request.user,report_name=REPORT_NAME)
         return response(SUCCESS, final_result, HTTP_200_OK)

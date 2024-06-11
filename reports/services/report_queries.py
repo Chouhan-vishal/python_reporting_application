@@ -4,7 +4,7 @@ from .report_user_rules import *
 def sales_summary_query(start_date, end_date, pre_date, team_names= None):
     sub_query = ""
     if team_names:
-        sub_query = f"WHERE ST.[Team Name] in {team_names}"
+        sub_query = f"WHERE ST.[Team Name] in ({team_names})"
     sql_query = f"""
         WITH SalesTeamCTE AS (
             SELECT   
@@ -73,10 +73,10 @@ def sales_summary_query(start_date, end_date, pre_date, team_names= None):
 
 def sales_collection_outstanding_summary(pre_date, user, team_names=None):
     if is_salesman(user):
-        first_name = user.first_name
+        full_name = user.full_name
         sub_query = f"""
         WHERE ST.[Team Name] IS NOT NULL
-        AND (LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"""
+        AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}') )"""
     elif is_manager(user):
         sub_query = f"WHERE ST.[Team Name] in {team_names}"
     else:
@@ -248,10 +248,10 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, team_names 
 def weekly_report_query(user, team_names):
 
     if is_salesman(user):
-        first_name = user.first_name
+        full_name = user.full_name
         sub_query = f"""
         WHERE ST.[Team Name] IS NOT NULL
-        AND (LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"""
+        AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"""
     elif is_manager(user):
         sub_query = f"WHERE ST.[Team Name] in {team_names}"
     else:
@@ -378,8 +378,8 @@ def weekly_report_query(user, team_names):
 def collection_report_by_date_range(date, user, team_names):
 
     if is_salesman(user):
-        first_name = user.first_name
-        sub_query = f"AND LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%'"
+        full_name = user.full_name
+        sub_query = f"AND LOWER(ST.[Sales Person]) = LOWER('{full_name}')"
     elif is_manager(user):
         sub_query = f"AND ST.[Team Name] in {team_names}"
     else:
@@ -403,8 +403,8 @@ def collection_report_by_date_range(date, user, team_names):
 
 def customer_wise_outstanding_query(outstanding_value, user, team_names):
     if is_salesman(user):
-        first_name = user.first_name
-        sub_query = f"AND (LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"
+        full_name = user.full_name
+        sub_query = f"AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
     elif is_manager(user):
         sub_query = f"AND ST.[Team Name] in {team_names}"
     else:
@@ -445,8 +445,8 @@ def customer_wise_outstanding_query(outstanding_value, user, team_names):
 def cr_utilization_report_query(user, team_names):
 
     if is_salesman(user):
-        first_name = user.first_name
-        sub_query = f"AND (LOWER(t1.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"
+        full_name = user.full_name
+        sub_query = f"AND (LOWER(t1.[Sales Person]) = LOWER('{full_name}'))"
     elif is_manager(user):
         sub_query = f"AND t1.[Team Name] in {team_names}"
     else:
@@ -562,8 +562,8 @@ def team_and_product_wise_query(start_date, end_date, pre_date):
 
 def salesman_and_product_wise_query(user, team_names):
     if is_salesman(user):
-        first_name = user.first_name
-        sub_query = f"AND (LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"
+        full_name = user.full_name
+        sub_query = f"AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
     elif is_manager(user):
         sub_query = f"AND ST.[Team Name] in {team_names}"
     else:
@@ -622,8 +622,8 @@ def salesman_and_product_wise_query(user, team_names):
 def target_and_achieved_query(start_date, end_date, pre_day, user, team_names):
 
     if is_salesman(user):
-        first_name = user.first_name
-        sub_query = f"WHERE (LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"
+        full_name = user.full_name
+        sub_query = f"WHERE (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
     elif is_manager(user):
         sub_query = f"WHERE ST.[Team Name] in {team_names}"
     else:
@@ -889,11 +889,9 @@ def block_customers_list_query():
 
 
 def all_customers_sales_query(start_date, end_date, user, team_names):
-
-
     if is_salesman(user):
-        first_name = user.first_name
-        sub_query = f"AND (LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"
+        full_name = user.full_name
+        sub_query = f"AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
     elif is_manager(user):
         sub_query = f"AND ST.[Team Name] in {team_names}"
     else:
@@ -1077,11 +1075,9 @@ def review_product_wise_query(month_count, team_names):
     return sql_query
 
 def target_customers_sales_query(start_date, end_date, user, team_names):
-
-
     if is_salesman(user):
-        first_name = user.first_name
-        sub_query = f"WHERE (LOWER(ST.[Sales Person]) LIKE '%' + LOWER('{first_name}') + '%')"
+        full_name = user.full_name
+        sub_query = f"WHERE (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
     elif is_manager(user):
         sub_query = f"WHERE ST.[Team Name] in {team_names}"
     else:

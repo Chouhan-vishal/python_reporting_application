@@ -25,10 +25,9 @@ def sales_summary_report(request):
     try:
         user = request.user
         team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
         
         REPORT_NAME = 'Sales Summary Report'
         start_date = request.data.get("start_date", None)
@@ -93,11 +92,9 @@ def sales_summary_report(request):
 def sales_collection_outstanding_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = 'Sales Collection Outstanding Report'
         start_date = request.data.get("start_date", None)
@@ -173,11 +170,9 @@ def sales_collection_outstanding_report(request):
 def product_wise_sales_summary(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
         REPORT_NAME = "Product Wise Sales Summary"
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -218,11 +213,9 @@ def product_wise_sales_summary(request):
 def weekly_summary(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "Weekly Summary Report"
         today_is_monday = datetime.today().weekday() == 0
@@ -294,11 +287,9 @@ def weekly_summary(request):
 def collection_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "Collection Report"
         start_date_str = request.data.get("start_date")
@@ -361,11 +352,9 @@ def collection_report(request):
 def customer_wise_outstanding(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = 'Customer Wise Outstanding Report'
         outstanding_value = request.data.get("outstanding")
@@ -417,11 +406,9 @@ def customer_wise_outstanding(request):
 def cr_utilization_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "CR Utilization Report"
         conn = report_services.create_sql_server_connection()
@@ -490,11 +477,9 @@ def team_and_product_wise_report(request):
 def salesman_and_product_wise_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "Salesman and Product Wise Report"
         conn = report_services.create_sql_server_connection()
@@ -555,11 +540,9 @@ def salesman_and_product_wise_report(request):
 def target_and_achieved_report(request):
     try:
         user =  request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = 'Target and Achieved Report'
         start_date = request.data.get("start_date", None)
@@ -640,11 +623,9 @@ def target_and_achieved_report(request):
 def welding_electrode_product_sales_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "Welding Electrode Product Sales Report"
         start_date = request.data.get("start_date", None)
@@ -714,11 +695,9 @@ def welding_electrode_product_sales_report(request):
 def durastrong_tmt_product_sales_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "Durastrong TMT Product Sales Report"
         start_date = request.data.get("start_date", None)
@@ -828,11 +807,9 @@ def block_customers_list_report(request):
 def all_customers_mom_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "All Customers Month on Month Report"
         conn = report_services.create_sql_server_connection()
@@ -887,11 +864,9 @@ def all_customers_mom_report(request):
 def product_wise_month_on_month_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "Product Wise Month On Month Report"
         conn = report_services.create_sql_server_connection()
@@ -938,11 +913,9 @@ def product_wise_month_on_month_report(request):
 def review_product_wise_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "Review Product Wise Report"
         conn = report_services.create_sql_server_connection()
@@ -987,11 +960,9 @@ def review_product_wise_report(request):
 def target_customer_sales_report(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "Target Customer Sales Report"
         conn = report_services.create_sql_server_connection()
@@ -1044,11 +1015,9 @@ def target_customer_sales_report(request):
 def review_salesman_wise_data(request):
     try:
         user = request.user
-        team_names = None
-        if report_user_rules.is_manager(user):
-            team_names = report_services.get_teamnames_for_user(user)
-            if not team_names or len(team_names) == 0:
-                return Response({"error": "You are not belongs to any Team"}, status=400)
+        team_names = report_services.get_teamnames_for_user(user)
+        if team_names == 'failed':
+            return Response({"error": "This Manager name is not related to any Team"}, status=400)
 
         REPORT_NAME = "Review SalesMan Wise Report"
         conn = report_services.create_sql_server_connection()

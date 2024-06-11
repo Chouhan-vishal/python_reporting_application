@@ -56,10 +56,15 @@ class UserManager(BaseUserManager):
             }
         def salesman_permission_set():
             return {}
-        if hierarchy.name=='manager':
-            ReportPermission.objects.create(user=user, reports_permission=manager_permission_set())
-        elif hierarchy.name=='salesman':
-            ReportPermission.objects.create(user=user, reports_permission=salesman_permission_set())
+        if hierarchy.name == 'manager':
+            report_permission = ReportPermission.objects.create(reports_permission=manager_permission_set())
+        elif hierarchy.name == 'salesman':
+            report_permission = ReportPermission.objects.create(reports_permission=salesman_permission_set())
+        else:
+            report_permission = ReportPermission.objects.create()
+
+        user.permitted_reports = report_permission
+        user.save(using=self._db)
         return user
 
     def create_superuser(self, email, phone_number, password=None):
@@ -115,6 +120,7 @@ class User(AbstractBaseUser):
     phone_number = models.CharField(max_length=255, null=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
+    permitted_reports = models.OneToOneField('ReportPermission', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(verbose_name='created at', auto_now_add=True)
     last_login = models.DateTimeField(verbose_name='last login', auto_now=True)
     objects = UserManager()
@@ -159,7 +165,6 @@ class TwoFactorAuthentication(models.Model):
     secret_key = models.CharField(max_length=255)
     is_enabled = models.BooleanField(default=False)
 class ReportPermission(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='report_permissions')
     reports_permission = models.JSONField(null=True)
     def __str__(self):
             return str(self.reports_permission)

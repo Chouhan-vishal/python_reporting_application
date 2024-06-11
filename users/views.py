@@ -14,7 +14,7 @@ from .services.utils import generate_otp, send_otp_email
 from datetime import datetime, timedelta
 from django.utils.timezone import now as aware_utcnow
 from django.db.models import Q
-from reports.services import report_services
+from reports.services import report_services, report_queries
 from rest_framework.views import APIView
 from rest_framework import status
 import pyotp
@@ -34,6 +34,7 @@ from drf_spectacular import openapi
 
 import logging
 import os
+from reports.services import report_services
 
 logger = logging.getLogger('users')
 
@@ -641,7 +642,7 @@ class TeamNames(APIView):
         responses={HTTP_200_OK: OpenApiTypes.OBJECT},
         description="Get a list of team names."
     )
-    def get(self, request):
+    def post(self, request):
         """
         Get a list of team names.
 
@@ -654,14 +655,17 @@ class TeamNames(APIView):
         try:
             conn = report_services.create_sql_server_connection()
             cursor = conn.cursor()
-            # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = "Select Distinct [Team Name] from tbl_TargetCustomers"
+            manager_name = request.data.get("manager_name", None)
+            sql_query = report_queries.team_names_query(manager_name)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             team_names = [row[0] for row in results]
+
             return response(SUCCESS, {'team_names': team_names}, HTTP_200_OK)
+
         except Exception as e:
             logger.error(f'Error during team names retrieval: {str(e)}')
+
             return response(SUCCESS, {'error': 'Error during team names retrieval'}, HTTP_400_BAD_REQUEST)
 
 
@@ -676,10 +680,18 @@ class ManagerList(APIView):
     """
     def get(self, request):
         try:
-            managers_hierarchy = Hierarchy.objects.get(name='manager')
-            users_in_managers_hierarchy = User.objects.filter(hierarchy=managers_hierarchy)
-            serializer = UserSerializer(users_in_managers_hierarchy, many=True)
-            return response(SUCCESS, serializer.data, HTTP_200_OK)
+            conn = report_services.create_sql_server_connection()
+            cursor = conn.cursor()
+            sql_query = report_queries.manager_names_query()
+            cursor.execute(sql_query)
+        
+            # Fetch data
+            results = cursor.fetchall()
+            
+            # Initialize a nested dictionary to hold the grouped data
+            manager_names = [row[0] for row in results]
+
+            return response(SUCCESS, manager_names, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during manager names retrieval: {str(e)}')
             return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)

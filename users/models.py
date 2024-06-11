@@ -110,8 +110,8 @@ class User(AbstractBaseUser):
         null=False,
     )
     full_name = models.CharField(max_length=255, null=True)
-    team_name = models.CharField(max_length=255, null=True)
-    manager_name = models.CharField(max_length=255, null=True)
+    team_name = models.CharField(max_length=255, null=True, blank=True)
+    manager_name = models.CharField(max_length=255, null=True, blank=True)
     phone_number = models.CharField(max_length=255, null=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)

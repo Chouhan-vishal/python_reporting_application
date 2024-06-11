@@ -11,25 +11,33 @@ class HierarchySerializer(serializers.ModelSerializer):
         model = Hierarchy
         fields = ['id', 'name']
 
+class ReportPermissionSerializer(serializers.ModelSerializer):
+    reports_permission = serializers.JSONField()
+    class Meta:
+        model = ReportPermission
+        fields = ['id', 'reports_permission']
+
+
 class UserSerializer(serializers.ModelSerializer):
     hierarchy = HierarchySerializer(read_only=True)
     role = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     last_login = serializers.DateTimeField(read_only=True)
-    reports_permission = serializers.JSONField(required=False)
+    permitted_reports = ReportPermissionSerializer(required=False)
 
     class Meta:
         model = User
         fields = ['id', 'emp_code', 'full_name', 'team_name', 'manager_name', 'password', 'is_active', 'is_admin', 'created_at', 'last_login',
-                  'email', 'hierarchy', "role", 'phone_number', 'reports_permission']
+                  'email', 'hierarchy', "role", 'phone_number', 'permitted_reports']
         read_only_fields = ['created_at', 'last_login']
 
     def create(self, validated_data):
         with transaction.atomic():
             role = validated_data.pop('role', None)
             hierarchy_obj = Hierarchy.objects.filter(name=role).first()
-            reports_permission = validated_data.pop('reports_permission', None)
+            reports_permission_data = validated_data.pop('permitted_reports', None)
+            permissions_dict = reports_permission_data.get('reports_permission', None)
             is_admin = validated_data.get('is_admin', False)            
             if not hierarchy_obj:
                 raise serializers.ValidationError(f"No hierarchy found for role '{role}'")
@@ -37,10 +45,13 @@ class UserSerializer(serializers.ModelSerializer):
             user = User.objects.create_user(**validated_data)
             if user.is_admin:
                 TwoFactorAuthentication.objects.create(user=user)
-            if reports_permission:
-                report_permission_obj = ReportPermission.objects.filter(user=user).first()
-                report_permission_obj.reports_permission.update(reports_permission)
-                report_permission_obj.save()
+            if reports_permission_data:
+                permitted_reports_obj = user.permitted_reports
+                permitted_report_dict_data = {key: value for key, value in reports_permission_data.items() if key in permitted_reports_obj.reports_permission.keys()}
+                permitted_reports_obj.reports_permission.update(permitted_report_dict_data)
+                permitted_reports_obj.save()
+                user.save()
+
             return user
 
     def update(self, instance, validated_data):
@@ -60,11 +71,13 @@ class UserSerializer(serializers.ModelSerializer):
             instance.phone_number = validated_data.get('phone_number', instance.phone_number)
             instance.is_active = validated_data.get('is_active', instance.is_active)
             instance.is_admin = validated_data.get('is_admin', instance.is_admin)
-            reports_permission = validated_data.pop('reports_permission', None)
-            if reports_permission is not None:
-                if hasattr(instance, 'report_permissions'):
-                    instance.report_permissions.reports_permission.update(reports_permission)
-                    instance.report_permissions.save()
+            reports_permission = validated_data.pop('permitted_reports', None)
+            reports_permission_data = reports_permission.get('reports_permission', None)
+            if reports_permission:
+                permitted_reports_obj = instance.permitted_reports
+                permitted_report_dict_data = {key: value for key, value in reports_permission_data.items() if key in permitted_reports_obj.reports_permission.keys()}
+                permitted_reports_obj.reports_permission.update(permitted_report_dict_data)
+                permitted_reports_obj.save()
             instance.save()
             return instance
 

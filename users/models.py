@@ -5,10 +5,10 @@ from django.conf import settings
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, emp_code, email, phone_number, team_name=None, manager_name = None,  hierarchy = None, first_name=None, last_name=None, password=None, is_admin=False, admin_user= None):
+    def create_user(self, emp_code, email, phone_number, team_name=None, manager_name = None,  hierarchy = None, full_name=None, password=None, is_admin=False, admin_user= None):
         """
         Creates and saves a User with the given email, emp_code, phone_number,
-        first_name, last_name and password.
+        full_name and password.
         """
         if not email:
             raise ValueError("Users must have an email address")
@@ -16,17 +16,14 @@ class UserManager(BaseUserManager):
             raise ValueError("Users must have a phone number")
         if not hierarchy:
             raise ValueError("Users must have a hierarchy")
-        if not first_name:
-            first_name = ""
-        if not last_name:
-            last_name = "",
+        if not full_name:
+            full_name = ""
 
         user = self.model(
             emp_code=emp_code,
             email=email,
             phone_number=phone_number,
-            first_name=first_name,
-            last_name=last_name,
+            full_name=full_name,
             is_admin=is_admin,
             hierarchy=hierarchy,
             admin_user = admin_user,
@@ -112,8 +109,7 @@ class User(AbstractBaseUser):
         unique=True,
         null=False,
     )
-    first_name = models.CharField(max_length=255, null=True)
-    last_name = models.CharField(max_length=255, null=True)
+    full_name = models.CharField(max_length=255, null=True)
     team_name = models.CharField(max_length=255, null=True)
     manager_name = models.CharField(max_length=255, null=True)
     phone_number = models.CharField(max_length=255, null=True)

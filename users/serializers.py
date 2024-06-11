@@ -21,7 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'emp_code', 'first_name', 'last_name', 'team_name', 'manager_name', 'password', 'is_active', 'is_admin', 'created_at', 'last_login',
+        fields = ['id', 'emp_code', 'full_name', 'team_name', 'manager_name', 'password', 'is_active', 'is_admin', 'created_at', 'last_login',
                   'email', 'hierarchy', "role", 'phone_number', 'reports_permission']
         read_only_fields = ['created_at', 'last_login']
 
@@ -54,10 +54,9 @@ class UserSerializer(serializers.ModelSerializer):
                     instance.hierarchy = hierarchy_obj
             instance.emp_code = validated_data.get('emp_code', instance.emp_code)
             instance.email = validated_data.get('email', instance.email)
-            instance.first_name = validated_data.get('first_name', instance.first_name)
+            instance.full_name = validated_data.get('full_name', instance.full_name)
             instance.team_name = validated_data.get('team_name', instance.team_name)
             instance.manager_name = validated_data.get('team_name', instance.manager_name)
-            instance.last_name = validated_data.get('last_name', instance.last_name)
             instance.phone_number = validated_data.get('phone_number', instance.phone_number)
             instance.is_active = validated_data.get('is_active', instance.is_active)
             instance.is_admin = validated_data.get('is_admin', instance.is_admin)
@@ -88,8 +87,7 @@ class UserActivityLogSerializer(serializers.ModelSerializer):
             user_representation = {
                 'id': user_representation.get('id'),
                 'emp_code': user_representation.get('emp'),
-                'first_name': user_representation.get('first_name'),
-                'last_name': user_representation.get('last_name'),
+                'full_name': user_representation.get('full_name'),
                 'email': user_representation.get('email'),
                 'team_name': user_representation.get('team_name'),
                 'manager_name': user_representation.get('manager_name')

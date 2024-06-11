@@ -1254,3 +1254,14 @@ def get_team_names():
     WHERE LOWER(ST.[Reporting Manager Name]) LIKE ?
     """
     return sql_query
+
+def manager_names_query():
+    sql_query = "select Distinct [Reporting Manager Name] from tbl_HierarchyMapping"
+    return sql_query
+
+def team_names_query(manager_name = None):
+    sub_query = ""
+    if manager_name:
+        sub_query = f"WHERE [Reporting Manager Name] = '{manager_name}'"
+    sql_query = f"Select Distinct [Team Name] from tbl_HierarchyMapping {sub_query}"
+    return sql_query

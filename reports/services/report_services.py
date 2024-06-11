@@ -109,10 +109,6 @@ class HasReportPermission(BasePermission):
         }
     
         report_permission = report_name_to_permission_map.get(view.get_view_name())
-        if report_permission is not None:
-            report_permission = report_permission.lower().replace(" ","_")
-        else:
-            raise PermissionDenied("Invalid key for the report permission either the key is not added or the view name is incorrect. please contact backend developer.")
-        if report_permission and hasattr(request.user, 'report_permissions'):
-            return request.user.report_permissions.reports_permission.get(report_permission, False)
+        if report_permission and hasattr(request.user, 'permitted_reports'):
+            return request.user.permitted_reports.reports_permission.get(report_permission, False)
         raise PermissionDenied(self.message)

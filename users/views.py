@@ -621,8 +621,7 @@ class UserSearch(APIView):
             users = User.objects.filter(
                 Q(emp_code__icontains=query) |
                 Q(email__icontains=query) |
-                Q(first_name__icontains=query) |
-                Q(last_name__icontains=query) |
+                Q(full_name__icontains=query) |
                 Q(team_name__icontains=query) |
                 Q(manager_name__icontains=query) |
                 Q(phone_number__icontains=query)

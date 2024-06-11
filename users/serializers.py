@@ -47,7 +47,7 @@ class UserSerializer(serializers.ModelSerializer):
                 TwoFactorAuthentication.objects.create(user=user)
             if reports_permission_data:
                 permitted_reports_obj = user.permitted_reports
-                permitted_report_dict_data = {key: value for key, value in reports_permission_data.items() if key in permitted_reports_obj.reports_permission.keys()}
+                permitted_report_dict_data = {key: value for key, value in permissions_dict.items() if key in permitted_reports_obj.reports_permission.keys()}
                 permitted_reports_obj.reports_permission.update(permitted_report_dict_data)
                 permitted_reports_obj.save()
                 user.save()

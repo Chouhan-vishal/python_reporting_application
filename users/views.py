@@ -321,9 +321,12 @@ class Profile(APIView):
         """
         try:
             user = request.user
+            accessible_reports_list = [{"path":f"/{k}".replace("_", "-"), "title":" ".join([str(k).capitalize() for k in str(k).split("_")])} for k,v in user.permitted_reports.reports_permission.items() if v==True]
             serializer = UserSerializer(user)
+            data = serializer.data
+            data['accessible_reports'] = accessible_reports_list
             logger.info(f'User with "email": {user.email} retrieved successfully')
-            return response(SUCCESS, serializer.data, status.HTTP_200_OK)
+            return response(SUCCESS, data, status.HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during user detail retrieval: {str(e)}')
             return response(FAILED, {ERROR: 'Error during user detail retrieval'}, status.HTTP_400_BAD_REQUEST)

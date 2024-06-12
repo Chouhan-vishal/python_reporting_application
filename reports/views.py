@@ -915,7 +915,7 @@ def product_wise_month_on_month_report(request):
                 "item_category": item_category,
                 "month_data": month_list
             })
-        # report_services.create_log(user=request.user,report_name=REPORT_NAME)
+        report_services.create_log(user=request.user,report_name=REPORT_NAME)
         return response(SUCCESS, final_result, HTTP_200_OK)
     except Exception as e:
         logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
@@ -970,7 +970,7 @@ def review_product_wise_report(request):
         return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasReportPermission])
 def target_customer_sales_report(request):
     try:
         team_name = request.data.get("team_name")
@@ -1028,7 +1028,7 @@ def target_customer_sales_report(request):
         return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated ])
+@permission_classes([IsAuthenticated, HasReportPermission])
 def review_salesman_wise_data(request):
     try:
         user = request.user

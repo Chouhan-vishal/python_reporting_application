@@ -6,6 +6,9 @@ from datetime import datetime, timedelta
 from users.models import UserActivityLog
 from rest_framework.permissions import BasePermission
 from rest_framework.exceptions import PermissionDenied
+from .report_queries import * 
+from .report_user_rules import *
+
 load_dotenv()
 
 database = os.environ["SSLS_DATABASE_NAME"]
@@ -78,6 +81,35 @@ def get_monthly_date_ranges(num_months):
         date_ranges.append({'month': datetime(year, month, 1).strftime('%B'), 'start_date': start_date, 'end_date': end_date})
 
     return date_ranges
+
+def get_teamnames_for_user(user, team_name = None):
+    try:
+        if is_manager(user):
+            conn = create_sql_server_connection()
+            cursor = conn.cursor()
+            full_name = user.full_name.lower()
+            query = get_team_names(full_name)
+            cursor.execute(query)
+            results = cursor.fetchall()
+            team_names = [row[0] for row in results]
+            if team_name:
+                if team_name in team_names:
+                    team_names = f"'{team_name}'"
+                else:
+                    raise Exception("This Team Name is not related to the Manager")
+                return team_names
+
+            if not team_names or len(team_names) == 0:
+                raise Exception("This Manager name is not related to any Team")
+            else:
+                team_names = ', '.join(f"'{team}'" for team in team_names)
+            cursor.close()
+            conn.close()
+        else:
+            team_names = None
+        return team_names
+    except Exception as e:
+        raise e
 
 
 def create_log(user, report_name):

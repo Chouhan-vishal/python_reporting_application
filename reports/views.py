@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from reports.services import report_services, report_queries
+from reports.services import report_services, report_queries, report_user_rules
 from reports.services.report_services import HasReportPermission
 from django.db import connection, DatabaseError
 from rest_framework.views import APIView
@@ -23,6 +23,12 @@ logger = logging.getLogger('reports')
 @permission_classes([IsAuthenticated, HasReportPermission])
 def sales_summary_report(request):
     try:
+        user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+        
         REPORT_NAME = 'Sales Summary Report'
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -31,7 +37,7 @@ def sales_summary_report(request):
         pre_date = report_services.get_previous_date(end_date)
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.sales_summary_query(start_date, end_date, pre_date)
+        sql_query = report_queries.sales_summary_query(start_date, end_date, pre_date, team_names)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
@@ -86,6 +92,11 @@ def sales_summary_report(request):
 def sales_collection_outstanding_report(request):
     try:
         user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = 'Sales Collection Outstanding Report'
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -95,7 +106,7 @@ def sales_collection_outstanding_report(request):
         pre_date = report_services.get_previous_date(end_date)
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.sales_collection_outstanding_summary(pre_date, user)
+        query = report_queries.sales_collection_outstanding_summary(pre_date, user, team_names)
         cursor.execute(query)
 
         results = cursor.fetchall()
@@ -159,6 +170,12 @@ def sales_collection_outstanding_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def product_wise_sales_summary(request):
     try:
+        user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Product Wise Sales Summary"
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -167,7 +184,7 @@ def product_wise_sales_summary(request):
         pre_date = report_services.get_previous_date(end_date)
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.product_wise_sales_summary_query(start_date, end_date, pre_date)
+        query = report_queries.product_wise_sales_summary_query(start_date, end_date, pre_date, team_names)
         cursor.execute(query)
 
         results = cursor.fetchall()
@@ -199,11 +216,16 @@ def product_wise_sales_summary(request):
 def weekly_summary(request):
     try:
         user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Weekly Summary Report"
         today_is_monday = datetime.today().weekday() == 0
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.weekly_report_query(user)
+        query = report_queries.weekly_report_query(user, team_names)
         cursor.execute(query)
         results = cursor.fetchall()
 
@@ -269,6 +291,11 @@ def weekly_summary(request):
 def collection_report(request):
     try:
         user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Collection Report"
         start_date_str = request.data.get("start_date")
         end_date_str = request.data.get("end_date")
@@ -285,7 +312,7 @@ def collection_report(request):
         
         current_date = start_date
         while current_date <= end_date:
-            query = report_queries.collection_report_by_date_range(current_date, user)
+            query = report_queries.collection_report_by_date_range(current_date, user, team_names)
             cursor.execute(query)
             data = cursor.fetchall()
             
@@ -329,19 +356,23 @@ def collection_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def customer_wise_outstanding(request):
     try:
-        user = request.user
-        REPORT_NAME = 'Customer Wise Outstanding Report'
-        outstanding_value = request.data.get("outstanding")
         team_name = request.data.get("team_name")
         salesman = request.data.get("salesman")
+        user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
+        REPORT_NAME = 'Customer Wise Outstanding Report'
+        outstanding_value = request.data.get("outstanding")
         outstanding_days = [0, 25, 45, 90]
         if outstanding_value not in outstanding_days:
             return Response({"error": "Please provide valid outstanding day value"}, status=400)
         # Define the raw SQL query
-
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, user)
+        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, user, team_names, salesman)
         cursor.execute(sql_query)
 
         # Fetch data
@@ -376,16 +407,21 @@ def customer_wise_outstanding(request):
                 "salesman": serializers.CharField()
             })
 @api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
+@permission_classes([IsAuthenticated, HasReportPermission])
 def cr_utilization_report(request):
     try:
+        team_name = request.data.get("team_name")
+        salesman = request.data.get("salesman")
         user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "CR Utilization Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
-        sql_query = report_queries.cr_utilization_report_query(user)
+        sql_query = report_queries.cr_utilization_report_query(user, team_names, salesman)
         cursor.execute(sql_query)
     
         # Fetch data
@@ -446,14 +482,18 @@ def team_and_product_wise_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def salesman_and_product_wise_report(request):
     try:
+        team_name = request.data.get("team_name")
+        salesman = request.data.get("salesman")
         user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Salesman and Product Wise Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
-
-        sql_query = report_queries.salesman_and_product_wise_query(user)
+        sql_query = report_queries.salesman_and_product_wise_query(user, team_names, salesman)
         cursor.execute(sql_query)
 
         # Fetching all the rows
@@ -506,6 +546,11 @@ def salesman_and_product_wise_report(request):
 def target_and_achieved_report(request):
     try:
         user =  request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = 'Target and Achieved Report'
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -514,7 +559,7 @@ def target_and_achieved_report(request):
         pre_date = report_services.get_previous_date(end_date)
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.target_and_achieved_query(start_date, end_date, pre_date, user)
+        sql_query = report_queries.target_and_achieved_query(start_date, end_date, pre_date, user, team_names)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
@@ -584,6 +629,12 @@ def target_and_achieved_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def welding_electrode_product_sales_report(request):
     try:
+        user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Welding Electrode Product Sales Report"
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -592,7 +643,7 @@ def welding_electrode_product_sales_report(request):
 
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.welding_electrode_product_sales_query(start_date, end_date)
+        sql_query = report_queries.welding_electrode_product_sales_query(start_date, end_date, team_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
 
@@ -651,6 +702,12 @@ def welding_electrode_product_sales_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def durastrong_tmt_product_sales_report(request):
     try:
+        user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Durastrong TMT Product Sales Report"
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -659,7 +716,7 @@ def durastrong_tmt_product_sales_report(request):
 
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.durastrong_tmt_product_sales_query(start_date, end_date)
+        sql_query = report_queries.durastrong_tmt_product_sales_query(start_date, end_date, team_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
 
@@ -758,7 +815,14 @@ def block_customers_list_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def all_customers_mom_report(request):
     try:
+        team_name = request.data.get("team_name")
+        salesman = request.data.get("salesman")
         user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "All Customers Month on Month Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -772,7 +836,7 @@ def all_customers_mom_report(request):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'],user)
+            sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'], user, team_names, salesman)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             month = item['month']
@@ -781,7 +845,7 @@ def all_customers_mom_report(request):
             for row in results:
                 sales_person = row[0]
                 customer_name = row[1]
-                achv_qty = row[2]
+                achv_qty = row[3]
                 
                 # Find the existing entry for the sales person and customer, if it exists
                 entry = next((entry for entry in result if entry["Sales Person"] == sales_person and entry["Customer Name"] == customer_name), None)
@@ -811,6 +875,12 @@ def all_customers_mom_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def product_wise_month_on_month_report(request):
     try:
+        user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Product Wise Month On Month Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -822,7 +892,7 @@ def product_wise_month_on_month_report(request):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.product_wise_month_on_month_query(item['start_date'], item['end_date'])
+            sql_query = report_queries.product_wise_month_on_month_query(item['start_date'], item['end_date'], team_names)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
@@ -845,7 +915,7 @@ def product_wise_month_on_month_report(request):
                 "item_category": item_category,
                 "month_data": month_list
             })
-        # report_services.create_log(user=request.user,report_name=REPORT_NAME)
+        report_services.create_log(user=request.user,report_name=REPORT_NAME)
         return response(SUCCESS, final_result, HTTP_200_OK)
     except Exception as e:
         logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
@@ -855,13 +925,19 @@ def product_wise_month_on_month_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def review_product_wise_report(request):
     try:
+        user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Review Product Wise Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         month_count = request.data.get("month_count", None)
         if not month_count:
             return Response({"error": "Please provide both start_date and end_date."}, status=400)
-        sql_query = report_queries.review_product_wise_query(month_count)
+        sql_query = report_queries.review_product_wise_query(month_count, team_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
         data = defaultdict(lambda: defaultdict(lambda: {"Target Qty": 0, "Months": defaultdict(float)}))
@@ -894,10 +970,17 @@ def review_product_wise_report(request):
         return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
+@permission_classes([IsAuthenticated, HasReportPermission])
 def target_customer_sales_report(request):
     try:
+        team_name = request.data.get("team_name")
+        salesman = request.data.get("salesman")
         user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Target Customer Sales Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -911,7 +994,7 @@ def target_customer_sales_report(request):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.target_customers_sales_query(item['start_date'], item['end_date'], user)
+            sql_query = report_queries.target_customers_sales_query(item['start_date'], item['end_date'], user, team_names, salesman)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             month = item['month']
@@ -945,14 +1028,20 @@ def target_customer_sales_report(request):
         return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
+@permission_classes([IsAuthenticated, HasReportPermission])
 def review_salesman_wise_data(request):
     try:
+        user = request.user
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Review SalesMan Wise Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         # Assuming you execute the query with the provided start_date and end_date values
-        sql_query1 = report_queries.review_salesman_wise_query1()
+        sql_query1 = report_queries.review_salesman_wise_query1(team_names)
         cursor.execute(sql_query1)
         results1 = cursor.fetchall()
         query1_data = [dict(zip([column[0] for column in cursor.description], row)) for row in results1]
@@ -966,7 +1055,7 @@ def review_salesman_wise_data(request):
         query2_data = defaultdict(list)
 
         for item in date_ranges:
-            sql_query2 = report_queries.review_salesman_wise_query2(item['start_date'], item['end_date'])
+            sql_query2 = report_queries.review_salesman_wise_query2(item['start_date'], item['end_date'], team_names)
             cursor.execute(sql_query2)
             results2 = cursor.fetchall()
             data2 = [dict(zip([column[0] for column in cursor.description], row)) for row in results2]

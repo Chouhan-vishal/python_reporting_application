@@ -24,10 +24,10 @@ logger = logging.getLogger('reports')
 def sales_summary_report(request):
     try:
         user = request.user
-        team_names = None
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
         
         REPORT_NAME = 'Sales Summary Report'
         start_date = request.data.get("start_date", None)
@@ -92,9 +92,10 @@ def sales_summary_report(request):
 def sales_collection_outstanding_report(request):
     try:
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = 'Sales Collection Outstanding Report'
         start_date = request.data.get("start_date", None)
@@ -170,9 +171,11 @@ def sales_collection_outstanding_report(request):
 def product_wise_sales_summary(request):
     try:
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
         REPORT_NAME = "Product Wise Sales Summary"
         start_date = request.data.get("start_date", None)
         end_date = request.data.get("end_date", None)
@@ -213,9 +216,10 @@ def product_wise_sales_summary(request):
 def weekly_summary(request):
     try:
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "Weekly Summary Report"
         today_is_monday = datetime.today().weekday() == 0
@@ -287,9 +291,10 @@ def weekly_summary(request):
 def collection_report(request):
     try:
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "Collection Report"
         start_date_str = request.data.get("start_date")
@@ -351,23 +356,23 @@ def collection_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def customer_wise_outstanding(request):
     try:
+        team_name = request.data.get("team_name")
+        salesman = request.data.get("salesman")
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = 'Customer Wise Outstanding Report'
         outstanding_value = request.data.get("outstanding")
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
         outstanding_days = [0, 25, 45, 90]
         if outstanding_value not in outstanding_days:
             return Response({"error": "Please provide valid outstanding day value"}, status=400)
         # Define the raw SQL query
-
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, user, team_names)
+        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, user, team_names, salesman)
         cursor.execute(sql_query)
 
         # Fetch data
@@ -402,20 +407,21 @@ def customer_wise_outstanding(request):
                 "salesman": serializers.CharField()
             })
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasReportPermission])
 def cr_utilization_report(request):
     try:
+        team_name = request.data.get("team_name")
+        salesman = request.data.get("salesman")
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "CR Utilization Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
-        sql_query = report_queries.cr_utilization_report_query(user, team_names)
+        sql_query = report_queries.cr_utilization_report_query(user, team_names, salesman)
         cursor.execute(sql_query)
     
         # Fetch data
@@ -476,18 +482,18 @@ def team_and_product_wise_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def salesman_and_product_wise_report(request):
     try:
+        team_name = request.data.get("team_name")
+        salesman = request.data.get("salesman")
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "Salesman and Product Wise Report"
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
-
-        sql_query = report_queries.salesman_and_product_wise_query(user, team_names)
+        sql_query = report_queries.salesman_and_product_wise_query(user, team_names, salesman)
         cursor.execute(sql_query)
 
         # Fetching all the rows
@@ -540,9 +546,10 @@ def salesman_and_product_wise_report(request):
 def target_and_achieved_report(request):
     try:
         user =  request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = 'Target and Achieved Report'
         start_date = request.data.get("start_date", None)
@@ -623,9 +630,10 @@ def target_and_achieved_report(request):
 def welding_electrode_product_sales_report(request):
     try:
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "Welding Electrode Product Sales Report"
         start_date = request.data.get("start_date", None)
@@ -695,9 +703,10 @@ def welding_electrode_product_sales_report(request):
 def durastrong_tmt_product_sales_report(request):
     try:
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "Durastrong TMT Product Sales Report"
         start_date = request.data.get("start_date", None)
@@ -806,10 +815,13 @@ def block_customers_list_report(request):
 @permission_classes([IsAuthenticated ,HasReportPermission])
 def all_customers_mom_report(request):
     try:
+        team_name = request.data.get("team_name")
+        salesman = request.data.get("salesman")
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "All Customers Month on Month Report"
         conn = report_services.create_sql_server_connection()
@@ -824,7 +836,7 @@ def all_customers_mom_report(request):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'], user, team_names)
+            sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'], user, team_names, salesman)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             month = item['month']
@@ -833,7 +845,7 @@ def all_customers_mom_report(request):
             for row in results:
                 sales_person = row[0]
                 customer_name = row[1]
-                achv_qty = row[2]
+                achv_qty = row[3]
                 
                 # Find the existing entry for the sales person and customer, if it exists
                 entry = next((entry for entry in result if entry["Sales Person"] == sales_person and entry["Customer Name"] == customer_name), None)
@@ -864,9 +876,10 @@ def all_customers_mom_report(request):
 def product_wise_month_on_month_report(request):
     try:
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "Product Wise Month On Month Report"
         conn = report_services.create_sql_server_connection()
@@ -913,9 +926,10 @@ def product_wise_month_on_month_report(request):
 def review_product_wise_report(request):
     try:
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "Review Product Wise Report"
         conn = report_services.create_sql_server_connection()
@@ -956,13 +970,16 @@ def review_product_wise_report(request):
         return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
+@permission_classes([IsAuthenticated])
 def target_customer_sales_report(request):
     try:
+        team_name = request.data.get("team_name")
+        salesman = request.data.get("salesman")
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user, team_name)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "Target Customer Sales Report"
         conn = report_services.create_sql_server_connection()
@@ -977,7 +994,7 @@ def target_customer_sales_report(request):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.target_customers_sales_query(item['start_date'], item['end_date'], user, team_names)
+            sql_query = report_queries.target_customers_sales_query(item['start_date'], item['end_date'], user, team_names, salesman)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             month = item['month']
@@ -1015,9 +1032,10 @@ def target_customer_sales_report(request):
 def review_salesman_wise_data(request):
     try:
         user = request.user
-        team_names = report_services.get_teamnames_for_user(user)
-        if team_names == 'failed':
-            return Response({"error": "This Manager name is not related to any Team"}, status=400)
+        try:
+            team_names = report_services.get_teamnames_for_user(user)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
 
         REPORT_NAME = "Review SalesMan Wise Report"
         conn = report_services.create_sql_server_connection()

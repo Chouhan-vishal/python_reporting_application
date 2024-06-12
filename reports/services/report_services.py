@@ -81,26 +81,36 @@ def get_monthly_date_ranges(num_months):
         date_ranges.append({'month': datetime(year, month, 1).strftime('%B'), 'start_date': start_date, 'end_date': end_date})
 
     return date_ranges
-def get_teamnames_for_user(user):
-    if is_manager(user):
-        conn = create_sql_server_connection()
-        cursor = conn.cursor()
-        query = get_team_names()
-        full_name = user.full_name
-        cursor.execute(query, ('%' + full_name.lower() + '%',))
-        results = cursor.fetchall()
-        team_names = [row[0] for row in results]
-        cursor.close()
-        conn.close()
 
-        if not team_names or len(team_names) == 1:
-            team_names = "failed"
+def get_teamnames_for_user(user, team_name = None):
+    try:
+        if is_manager(user):
+            conn = create_sql_server_connection()
+            cursor = conn.cursor()
+            full_name = user.full_name.lower()
+            query = get_team_names(full_name)
+            cursor.execute(query)
+            results = cursor.fetchall()
+            team_names = [row[0] for row in results]
+            if team_name:
+                if team_name in team_names:
+                    team_names = f"'{team_name}'"
+                else:
+                    raise Exception("This Team Name is not related to the Manager")
+                return team_names
+
+            if not team_names or len(team_names) == 0:
+                raise Exception("This Manager name is not related to any Team")
+            else:
+                team_names = ', '.join(f"'{team}'" for team in team_names)
+            cursor.close()
+            conn.close()
         else:
-            team_names = ', '.join(f"'{team}'" for team in team_names)
-    else:
-        team_names = None
+            team_names = None
+        return team_names
+    except Exception as e:
+        raise e
 
-    return team_names
 
 def create_log(user, report_name):
     activity_log = UserActivityLog.objects.create(user=user, report=report_name, log=f'{report_name} is viewed')
@@ -131,10 +141,6 @@ class HasReportPermission(BasePermission):
         }
     
         report_permission = report_name_to_permission_map.get(view.get_view_name())
-        if report_permission is not None:
-            report_permission = report_permission.lower().replace(" ","_")
-        else:
-            raise PermissionDenied("Invalid key for the report permission either the key is not added or the view name is incorrect. please contact backend developer.")
-        if report_permission and hasattr(request.user, 'report_permissions'):
-            return request.user.report_permissions.reports_permission.get(report_permission, False)
+        if report_permission and hasattr(request.user, 'permitted_reports'):
+            return request.user.permitted_reports.reports_permission.get(report_permission, False)
         raise PermissionDenied(self.message)

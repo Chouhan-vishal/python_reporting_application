@@ -5,7 +5,7 @@ from django.conf import settings
 
 
 class UserManager(BaseUserManager):
-    def create_user(self, emp_code, email, phone_number, team_name=None, manager_name = None,  hierarchy = None, full_name=None, password=None, is_admin=False, admin_user= None):
+    def create_user(self, emp_code, email, phone_number, is_active=True, team_name=None, manager_name = None,  hierarchy = None, full_name=None, password=None, is_admin=False, admin_user= None):
         """
         Creates and saves a User with the given email, emp_code, phone_number,
         full_name and password.
@@ -24,6 +24,7 @@ class UserManager(BaseUserManager):
             email=email,
             phone_number=phone_number,
             full_name=full_name,
+            is_active=is_active,
             is_admin=is_admin,
             hierarchy=hierarchy,
             admin_user = admin_user,
@@ -55,7 +56,17 @@ class UserManager(BaseUserManager):
                 "block_customers_list": False,
             }
         def salesman_permission_set():
-            return {}
+            return { 
+                "sales_collection_outstanding": False,
+                "weekly_summary": False,
+                "collection": False,
+                "customer_wise_outstanding": False,
+                "cr_utilization" : False,
+                "salesman_and_product_wise": False,
+                "target_and_achieved": False,
+                "target_customer_sales": False,
+                "all_customers_sales": False
+                }
         if hierarchy.name == 'manager':
             report_permission = ReportPermission.objects.create(reports_permission=manager_permission_set())
         elif hierarchy.name == 'salesman':

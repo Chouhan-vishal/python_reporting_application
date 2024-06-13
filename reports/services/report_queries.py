@@ -1230,3 +1230,10 @@ def team_names_query(manager_name = None):
         sub_query = f"WHERE [Reporting Manager Name] = '{manager_name}'"
     sql_query = f"Select Distinct [Team Name] from tbl_HierarchyMapping {sub_query}"
     return sql_query
+
+def salesman_names_query(team_name = None):
+    sub_query = ""
+    if team_name:
+        sub_query = f"WHERE [Team Name] = '{team_name}'"
+    sql_query = f"Select Distinct [Sales Person] from tbl_HierarchyMapping {sub_query}"
+    return sql_query

@@ -696,3 +696,31 @@ class ManagerList(APIView):
             logger.error(f'Error during manager names retrieval: {str(e)}')
             return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)
             
+
+class SalesmanList(APIView):
+    """
+    Return Manager Users.
+    Args:
+        request (HttpRequest): None
+    Returns:
+        Response: Returns All the User with hierarchy managers.
+    """
+    def get(self, request):
+        try:
+            team_name = request.data.get("team_name", None)
+            conn = report_services.create_sql_server_connection()
+            cursor = conn.cursor()
+            sql_query = report_queries.salesman_names_query(team_name)
+            cursor.execute(sql_query)
+        
+            # Fetch data
+            results = cursor.fetchall()
+            
+            # Initialize a nested dictionary to hold the grouped data
+            manager_names = [row[0] for row in results]
+
+            return response(SUCCESS, manager_names, HTTP_200_OK)
+        except Exception as e:
+            logger.error(f'Error during manager names retrieval: {str(e)}')
+            return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)
+            

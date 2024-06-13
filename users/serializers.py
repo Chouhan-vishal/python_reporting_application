@@ -56,9 +56,9 @@ class UserSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         with transaction.atomic():
-            hierarchy_name = validated_data.pop('hierarchy', None)
+            hierarchy_name = validated_data.pop('role', None)
             if hierarchy_name:
-                hierarchy_obj = Hierarchy.objects.filter(name=hierarchy_name)
+                hierarchy_obj = Hierarchy.objects.filter(name=hierarchy_name).first()
                 if hierarchy_obj is None:
                     raise serializers.ValidationError(f'hierarchy with name {hierarchy_name} does not exist ')
                 else:
@@ -72,8 +72,8 @@ class UserSerializer(serializers.ModelSerializer):
             instance.is_active = validated_data.get('is_active', instance.is_active)
             instance.is_admin = validated_data.get('is_admin', instance.is_admin)
             reports_permission = validated_data.pop('permitted_reports', None)
-            reports_permission_data = reports_permission.get('reports_permission', None)
             if reports_permission:
+                reports_permission_data = reports_permission.get('reports_permission', None)
                 permitted_reports_obj = instance.permitted_reports
                 permitted_report_dict_data = {key: value for key, value in reports_permission_data.items() if key in permitted_reports_obj.reports_permission.keys()}
                 permitted_reports_obj.reports_permission.update(permitted_report_dict_data)

@@ -43,7 +43,6 @@ class UserManager(BaseUserManager):
                 "collection": False,
                 "customer_wise_outstanding": False,
                 "cr_utilization": False,
-                "team_and_product_wise": False,
                 "salesman_and_product_wise": False,
                 "target_and_achieved": False,
                 "target_customer_sales": False,

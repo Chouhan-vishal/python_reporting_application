@@ -137,7 +137,7 @@ class HasReportPermission(BasePermission):
             "Product Wise Month On Month Report": "product_wise_month_sales",
             "Review Product Wise Report": "review_product_wise",
             "All Customers Mom Report": "all_customers_sales",
-            "Review Salesman Wise Data": "review_salesman_wise_data"
+            "Review Salesman Wise Data": "review_salesman_wise"
         }
     
         report_permission = report_name_to_permission_map.get(view.get_view_name())

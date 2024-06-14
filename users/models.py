@@ -53,6 +53,7 @@ class UserManager(BaseUserManager):
                 "sales_register": False,
                 "product_wise_month_sales": False,
                 "block_customers_list": False,
+                "review_salesman_wise": False
             }
         def salesman_permission_set():
             return { 

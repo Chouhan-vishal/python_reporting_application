@@ -661,10 +661,25 @@ def target_and_achieved_query(start_date, end_date, pre_day, user, team_names):
     ),
     Sales AS (
         SELECT      
+            ST.[Team Name],   
+            [Sales Person],
+            SUM([Qty(MTs)]) AS [Achv Qty], 
+            ST.[Previous Date]
+        FROM SalesTeamCTE ST
+        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
+            ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
+            AND SV.[Item Details] <> 'Welding Electrodes'
+            AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
+        GROUP BY 
+            ST.[Team Name],    
+            [Sales Person],
+            ST.[Previous Date]
+    ),
+    CustomerReached AS (
+        SELECT      
             TC.[Team Name],
             TC.[Sales Person],
-            SUM(SV.[Qty(MTs)]) AS [Achv Qty], 
-            COUNT(DISTINCT SV.[Customer ID]) AS [Target Customer Reached]
+            COUNT(DISTINCT CASE WHEN [Qty(MTs)] > 0 THEN SV.[Customer ID] ELSE NULL END) AS [Target Customer Reached]
         FROM [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
         INNER JOIN [dbo].[tbl_TargetCustomers] TC WITH (NOLOCK)
             ON SV.[Customer ID] = TC.[Customer ID]
@@ -711,7 +726,7 @@ def target_and_achieved_query(start_date, end_date, pre_day, user, team_names):
         ISNULL((SELECT [Achv Qty] FROM PreviousDateQty WHERE PreviousDateQty.[Team Name] = ST.[Team Name] AND PreviousDateQty.[Sales Person] = ST.[Sales Person]), 0) AS [Previous Date Qty],
         ISNULL((SELECT [Above 25 Days Outstanding] FROM Outstanding WHERE Outstanding.[Team Name] = ST.[Team Name] AND Outstanding.[Sales Person] = ST.[Sales Person]), 0) AS [Above 25 Days Outstanding],
         ISNULL((SELECT [Target Customer Count] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Count],
-        ISNULL((SELECT [Target Customer Reached] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Reached]
+        ISNULL((SELECT [Target Customer Reached] FROM CustomerReached WHERE CustomerReached.[Team Name] = ST.[Team Name] AND CustomerReached.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Reached]
     FROM SalesTeamCTE ST
     {sub_query}
     ORDER BY ST.[Team Name], ST.[Sales Person];
@@ -1222,13 +1237,6 @@ def get_team_names(manager_name):
 
 def manager_names_query():
     sql_query = "select Distinct [Reporting Manager Name] from tbl_HierarchyMapping"
-    return sql_query
-
-def team_names_query(manager_name = None):
-    sub_query = ""
-    if manager_name:
-        sub_query = f"WHERE [Reporting Manager Name] = '{manager_name}'"
-    sql_query = f"Select Distinct [Team Name] from tbl_HierarchyMapping {sub_query}"
     return sql_query
 
 def salesman_names_query(team_name = None):

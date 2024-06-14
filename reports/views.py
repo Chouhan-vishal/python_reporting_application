@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from reports.services import report_services, report_queries, report_user_rules
+from reports.services import report_services, report_queries, report_user_rules, dashboard_queries
 from reports.services.report_services import HasReportPermission
 from django.db import connection, DatabaseError
 from rest_framework.views import APIView
@@ -17,31 +17,23 @@ from rest_framework import serializers
 from datetime import datetime, timedelta
 logger = logging.getLogger('reports')
 
-
-@drf_schema(serializer_name="DateSerializer")
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, HasReportPermission])
-def sales_summary_report(request):
-    try:
-        user = request.user
-        try:
-            team_names = report_services.get_teamnames_for_user(user)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
-        
-        REPORT_NAME = 'Sales Summary Report'
-        start_date = request.data.get("start_date", None)
-        end_date = request.data.get("end_date", None)
-        if not start_date or not end_date:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
-        pre_date = report_services.get_previous_date(end_date)
+class SalesSummaryReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = 'Sales Summary Report'
+    def fetch_sales_summary(self, start_date, end_date, pre_date,team_names):
         conn = report_services.create_sql_server_connection()
-        cursor = conn.cursor()
-        sql_query = report_queries.sales_summary_query(start_date, end_date, pre_date, team_names)
-        # Assuming you execute the query with the provided start_date and end_date values
-        cursor.execute(sql_query)
-        results = cursor.fetchall()
-        team_sales_summary = {}
+        try:
+            cursor = conn.cursor()
+            sql_query = report_queries.sales_summary_query(start_date, end_date, pre_date, team_names)
+            # Assuming you execute the query with the provided start_date and end_date values
+            cursor.execute(sql_query)
+            results = cursor.fetchall()
+        finally:
+            cursor.close()
+            conn.close()
+        return results
+    
+    def process_sales_results(self, results):
         team_sales_summary = defaultdict(lambda: {
             'team_target_qty': 0,
             'team_sales_quantity': 0,
@@ -49,67 +41,70 @@ def sales_summary_report(request):
             'sales_persons': [],
             'TeamPreDaySalesValue': 0
         })
+
         for row in results:
-            team_name = row[0]
-            sales_person = row[1]
+            team_name, sales_person, target_qty, sales_quantity, achieved_pct, pre_day_sales_value = row
             sales_summary = {
                 'sales_person': sales_person,
-                'target_qty': row[2],
-                'sales_quantity': row[3],
-                'achieved%': row[4],
-                'PreDaySalesValue':row[5],
+                'target_qty': target_qty,
+                'sales_quantity': sales_quantity,
+                'achieved%': achieved_pct,
+                'PreDaySalesValue': pre_day_sales_value,
             }
             team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty']
             team_sales_summary[team_name]['team_sales_quantity'] += sales_summary['sales_quantity']
             team_sales_summary[team_name]['TeamPreDaySalesValue'] += sales_summary['PreDaySalesValue']
             team_sales_summary[team_name]['sales_persons'].append(sales_summary)
-        response_data = []
-        for team_name, team_summary in team_sales_summary.items():
-            team_target_qty = team_summary['team_target_qty']
-            team_sales_qty = team_summary['team_sales_quantity']
-            if team_target_qty != 0:
-                team_summary['team_achieved%'] = round((team_sales_qty / team_target_qty) * 100, 2)
-            team_data = {
+        
+        return team_sales_summary
+
+    def format_response_data(self, team_sales_summary):
+        response_data = [
+            {
                 'team_name': team_name,
                 'team_target_qty': team_summary['team_target_qty'],
                 'team_sales_quantity': team_summary['team_sales_quantity'],
-                'team_achieved%': team_summary['team_achieved%'],
+                'team_achieved%': round((team_summary['team_sales_quantity'] / team_summary['team_target_qty']) * 100, 2) if team_summary['team_target_qty'] != 0 else 0,
                 'TeamPreDaySalesValue': team_summary['TeamPreDaySalesValue'],
-                'sales_persons': team_summary['sales_persons'],
+                'sales_persons': team_summary['sales_persons']
             }
-            response_data.append(team_data)
-        cursor.close()
-        conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, response_data, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
-@drf_schema(serializer_name="DateSerializer")
-@api_view(['POST'])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def sales_collection_outstanding_report(request):
-    try:
-        user = request.user
-        try:
-            team_names = report_services.get_teamnames_for_user(user)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
-
-        REPORT_NAME = 'Sales Collection Outstanding Report'
-        start_date = request.data.get("start_date", None)
-        end_date = request.data.get("end_date", None)
-        if not start_date or not end_date:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
+            for team_name, team_summary in team_sales_summary.items()
+        ]
+        return response_data
     
-        pre_date = report_services.get_previous_date(end_date)
-        conn = report_services.create_sql_server_connection()
-        cursor = conn.cursor()
-        query = report_queries.sales_collection_outstanding_summary(pre_date, user, team_names)
-        cursor.execute(query)
+    @drf_schema(serializer_name="DateSerializer")
+    def post(self,request):
+        try:
+            user = request.user
+            start_date = request.data.get("start_date", None)
+            end_date = request.data.get("end_date", None)
 
-        results = cursor.fetchall()
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+            
+
+            if not start_date or not end_date:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
+            
+            pre_date = report_services.get_previous_date(end_date)
+            results = self.fetch_sales_summary(start_date, end_date, pre_date, team_names)
+            team_sales_summary = self.process_sales_results(results)
+            response_data = self.format_response_data(team_sales_summary)
+            
+            
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, response_data, HTTP_200_OK)
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+
+class SalesCollectionOutstandingReportView(APIView):
+    REPORT_NAME = 'Sales Collection Outstanding Report'
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    def process_sales_collections_outstanding_results(self,results):
         team_sales_summary = defaultdict(lambda: {
             'team_pre_day_sales_mts': 0,
             'team_pre_day_collection': 0,
@@ -121,32 +116,33 @@ def sales_collection_outstanding_report(request):
         })
 
         for row in results:
-            team_name = row[0]
-            sales_person = row[1]
+            team_name,sales_person,pre_day_sales_mts,pre_day_collection,overall_outstanding_amt,above_25_days_os,above_45_days_os,above_90_days_os = row[0],row[1],row[2], row[3], row[4], row[5], row[6], row[7]
+            
             sales_summary = {
                 'sales_person': sales_person,
-                'pre_day_sales_mts': row[2],
-                'pre_day_collection': row[3],
-                'overall_outstanding_amt': row[4],
-                'above_25_days_os': row[5],
-                'above_45_days_os': row[6],
-                'above_90_days_os': row[7]
+                'pre_day_sales_mts': pre_day_sales_mts,
+                'pre_day_collection': pre_day_collection,
+                'overall_outstanding_amt': overall_outstanding_amt,
+                'above_25_days_os': above_25_days_os,
+                'above_45_days_os': above_45_days_os,
+                'above_90_days_os': above_90_days_os
             }
             # Update team summary values
-            team_sales_summary[team_name]['team_pre_day_sales_mts'] += row[2]
-            team_sales_summary[team_name]['team_pre_day_collection'] += row[3]
-            team_sales_summary[team_name]['team_overall_outstanding_amt'] += row[4]
-            team_sales_summary[team_name]['team_above_25_days_os'] += row[5]
-            team_sales_summary[team_name]['team_above_45_days_os'] += row[6]
-            team_sales_summary[team_name]['team_above_90_days_os'] += row[7]
+            team_sales_summary[team_name]['team_pre_day_sales_mts'] += pre_day_sales_mts
+            team_sales_summary[team_name]['team_pre_day_collection'] += pre_day_collection
+            team_sales_summary[team_name]['team_overall_outstanding_amt'] += overall_outstanding_amt
+            team_sales_summary[team_name]['team_above_25_days_os'] += above_25_days_os
+            team_sales_summary[team_name]['team_above_45_days_os'] += above_45_days_os
+            team_sales_summary[team_name]['team_above_90_days_os'] += above_90_days_os
 
             # Append sales person summary to the team
             team_sales_summary[team_name]['team_sales_persons'].append(sales_summary)
 
-        # Convert the team_sales_summary dictionary to the desired array of dictionaries format
-        result = []
-        for team_name, summary in team_sales_summary.items():
-            team_dict = {
+        return team_sales_summary
+
+    def format_sales_collection_outstanding(self,team_sales_summary):
+        return [
+            {
                 'team_name': team_name,
                 'team_pre_day_sales_mts': summary['team_pre_day_sales_mts'],
                 'team_pre_day_collection': summary['team_pre_day_collection'],
@@ -156,79 +152,108 @@ def sales_collection_outstanding_report(request):
                 'team_above_90_days_os': summary['team_above_90_days_os'],
                 'team_sales_persons': summary['team_sales_persons']
             }
-            result.append(team_dict)
+            for team_name, summary in team_sales_summary.items()
+        ]
+    def fetch_sales_collection_outstanding_summary(self,pre_date, user, team_names):
+        conn = report_services.create_sql_server_connection()
+        cursor = conn.cursor()
+        query = report_queries.sales_collection_outstanding_summary(pre_date, user, team_names)
+        cursor.execute(query)
+        results = cursor.fetchall()
         cursor.close()
         conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, result, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+        return results
     
-@drf_schema(serializer_name="DateSerializer")
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def product_wise_sales_summary(request):
-    try:
-        user = request.user
+    @drf_schema(serializer_name="DateSerializer")
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
 
-        REPORT_NAME = "Product Wise Sales Summary"
-        start_date = request.data.get("start_date", None)
-        end_date = request.data.get("end_date", None)
-        if not start_date or not end_date:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
-        pre_date = report_services.get_previous_date(end_date)
+            start_date = request.data.get("start_date", None)
+            end_date = request.data.get("end_date", None)
+            if not start_date or not end_date:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
+        
+            pre_date = report_services.get_previous_date(end_date)
+            results = self.fetch_sales_collection_outstanding_summary(pre_date, user, team_names)
+            team_sales_summary = self.process_sales_collections_outstanding_results(results)
+            result = self.format_sales_collection_outstanding(team_sales_summary)
+
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, result, HTTP_200_OK)
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+class ProductWiseSalesSummary(APIView):
+    REPORT_NAME = "Product Wise Sales Summary"
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    def fetch_product_wise_sales_summary(self,start_date, end_date, pre_date, team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         query = report_queries.product_wise_sales_summary_query(start_date, end_date, pre_date, team_names)
         cursor.execute(query)
-
         results = cursor.fetchall()
         columns = [col[0] for col in cursor.description]
-
-        data = []
-        for row in results:
-            record = dict(zip(columns, row))
-            # Handling Nulls
-            if record['pre_day_sales'] is None:
-                record['pre_day_sales'] = 0
-            if record['achievement_percentage'] is None:
-                record['achievement_percentage'] = 0
-            data.append(record)
-        final_response = {"product_wise_sales": data}
-
         # Closing the cursor and connection
         cursor.close()
         conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, final_response, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+        return results,columns
 
-@drf_schema(serializer_name="DateSerializer")
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def weekly_summary(request):
-    try:
-        user = request.user
+    @drf_schema(serializer_name="DateSerializer")
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+            
+            start_date, end_date = request.data.get("start_date", None), request.data.get("end_date", None)
 
-        REPORT_NAME = "Weekly Summary Report"
-        today_is_monday = datetime.today().weekday() == 0
+
+            if not start_date or not end_date:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
+
+            pre_date = report_services.get_previous_date(end_date)
+            results,columns = self.fetch_product_wise_sales_summary(start_date, end_date, pre_date, team_names)
+
+            data = [
+                {
+                    **dict(zip(columns, row)),
+                    "pre_day_sales": row[columns.index("pre_day_sales")] if row[columns.index("pre_day_sales")] is not None else 0,
+                    "achievement_percentage": row[columns.index("achievement_percentage")] if row[columns.index("achievement_percentage")] is not None else 0
+                }
+                for row in results
+            ]
+            final_response = {"product_wise_sales": data}
+
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, final_response, HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+
+class WeeklySummary(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "Weekly Summary Report"
+    def fetch_weekly_summary(self,user,team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         query = report_queries.weekly_report_query(user, team_names)
         cursor.execute(query)
         results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return results
 
+    def process_weekly_summary_results(self,results, today_is_monday):
         team_sales_list = []
 
         team_sales_summary = defaultdict(lambda: {
@@ -275,37 +300,31 @@ def weekly_summary(request):
                 'Team Name': team_name,
                 **summary
             })
+        return team_sales_list
 
-        # Close cursor and connection
-        cursor.close()
-        conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, team_sales_list, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
-@drf_schema(serializer_name="DateSerializer")
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def collection_report(request):
-    try:
-        user = request.user
+    @drf_schema(serializer_name="DateSerializer")
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
 
-        REPORT_NAME = "Collection Report"
-        start_date_str = request.data.get("start_date")
-        end_date_str = request.data.get("end_date")
-        
-        if not start_date_str or not end_date_str:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
-        
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-        
+            today_is_monday = datetime.today().weekday() == 0
+            results  = self.fetch_weekly_summary(user,team_names)
+            team_sales_list = self.process_weekly_summary_results(results,today_is_monday)
+            
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, team_sales_list, HTTP_200_OK)
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+class CollectionReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "Collection Report"
+    def fetch_collection_report(self,user,team_names,start_date,end_date):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         team_totals = defaultdict(lambda: defaultdict(lambda: {"TotalCollection": 0, "IndividualSales": {}}))
@@ -315,7 +334,7 @@ def collection_report(request):
             query = report_queries.collection_report_by_date_range(current_date, user, team_names)
             cursor.execute(query)
             data = cursor.fetchall()
-            
+
             for row in data:
                 team_name, sales_person, total_collection = row
                 receipt_date = current_date.strftime('%Y-%m-%d')
@@ -325,6 +344,11 @@ def collection_report(request):
                 
             current_date += timedelta(days=1)
         
+        cursor.close()
+        conn.close()
+        return team_totals
+
+    def process_team_totals(self,team_totals):
         # Convert the team_totals dictionary to the desired array of dictionaries format
         result = []
         for team_name, date_data in team_totals.items():
@@ -336,47 +360,41 @@ def collection_report(request):
                     "TotalCollection": collections["TotalCollection"],
                     "IndividualSales": individual_sales_list
                 })
-        
-        # Closing the cursor and connection
-        cursor.close()
-        conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, result, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-    
-@drf_schema(serializer_name="CustomerWiseOutstandingSerializer",
-            serializer_fields={
-                "outstanding_value": serializers.IntegerField(),
-                "team_name": serializers.CharField(),
-                "salesman": serializers.CharField()
-            })
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def customer_wise_outstanding(request):
-    try:
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
-        user = request.user
+        return result
+
+    @drf_schema(serializer_name="DateSerializer")
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user, team_name)
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+
+            start_date_str = request.data.get("start_date")
+            end_date_str = request.data.get("end_date")
+            
+            if not start_date_str or not end_date_str:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
+            
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+            
+            team_totals = self.fetch_collection_report(user,team_names,start_date,end_date)
+                
+            result = self.process_team_totals(team_totals)
+            
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, result, HTTP_200_OK)
         except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-        REPORT_NAME = 'Customer Wise Outstanding Report'
-        outstanding_value = request.data.get("outstanding")
-        outstanding_days = [0, 25, 45, 90]
-        if outstanding_value not in outstanding_days:
-            return Response({"error": "Please provide valid outstanding day value"}, status=400)
-        # Define the raw SQL query
-        conn = report_services.create_sql_server_connection()
-        cursor = conn.cursor()
-        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, user, team_names, salesman)
-        cursor.execute(sql_query)
-
-        # Fetch data
-        data = cursor.fetchall()
+class CustomerWiseOutstanding(APIView):
+    REPORT_NAME = 'Customer Wise Outstanding Report'
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    def process_customer_wise_outstanding(self,data):
+        # formatted_data,total_outstanding_sum = self.process_customer_wise_outstanding(data)
         formatted_data = []
         for row in data:
             formatted_row = {
@@ -391,114 +409,107 @@ def customer_wise_outstanding(request):
         # Calculate total outstanding sum
         total_outstanding_sum = sum(row[4] for row in data)
 
-        # Close cursor and connection
-        cursor.close()
-        conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        # Return response with fetched data and total outstanding sum
-        return response(SUCCESS, {f"Customer wise {outstanding_value} Days O/S":formatted_data,"total_outstanding_sum": total_outstanding_sum}, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
-@drf_schema(serializer_name="CRUtilizationReportSerializer",
-            serializer_fields={
-                "team_name": serializers.CharField(),
-                "salesman": serializers.CharField()
-            })
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, HasReportPermission])
-def cr_utilization_report(request):
-    try:
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
-        user = request.user
-        try:
-            team_names = report_services.get_teamnames_for_user(user, team_name)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
-
-        REPORT_NAME = "CR Utilization Report"
+        return total_outstanding_sum,formatted_data
+    
+    def fetch_customer_wise_outstanding(self,outstanding_value, user, team_names, salesman):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.cr_utilization_report_query(user, team_names, salesman)
+        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, user, team_names, salesman)
         cursor.execute(sql_query)
-    
+
         # Fetch data
-        results = cursor.fetchall()
-        
-        # Initialize a nested dictionary to hold the grouped data
-        data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
-        
-        # Closing the cursor and connection
+        data = cursor.fetchall()
+         # Close cursor and connection
         cursor.close()
         conn.close()
-    
-        return response(SUCCESS, data, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-# ================================== Not including ================================================
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def team_and_product_wise_report(request):
-    conn = report_services.create_sql_server_connection()
-    cursor = conn.cursor()
-    start_date = request.data.get("start_date", None)
-    end_date = request.data.get("end_date", None)
-    if not start_date or not end_date:
-        return Response({"error": "Please provide both start_date and end_date."}, status=400)
-    pre_date = report_services.get_previous_date(end_date)
-    sql_query = report_queries.team_and_product_wise_query(start_date,end_date, pre_date)
-    cursor.execute(sql_query)
+        return data
 
-    # Fetching all the rows
-    rows = cursor.fetchall()
+    @drf_schema(serializer_name="CustomerWiseOutstandingSerializer",
+            serializer_fields={
+                "outstanding_value": serializers.IntegerField(),
+                "team_name": serializers.CharField(),
+                "salesman": serializers.CharField()
+            })
+    def post(self,request):
+        try:
+            team_name = request.data.get("team_name")
+            salesman = request.data.get("salesman")
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user, team_name)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
 
-    # Organizing data by product cluster
-    data_by_cluster = {}
-    for row in rows:
-        team_name, product_cluster, target_qty, achv_qty, achv_percent = row
-        if product_cluster not in data_by_cluster:
-            data_by_cluster[product_cluster] = {}
-        data_by_cluster[product_cluster][team_name] = {
-            'Target Qty': target_qty,
-            'Achv Qty': achv_qty,
-            'Achv %': achv_percent
-        }
-    
-    # Closing the cursor and connection
-    cursor.close()
-    conn.close()
-    return Response({"Team wise product wise report": data_by_cluster})
+            outstanding_value = request.data.get("outstanding")
+            outstanding_days = [0, 25, 45, 90]
+            if outstanding_value not in outstanding_days:
+                return Response({"error": "Please provide valid outstanding day value"}, status=400)
+            data = self.fetch_customer_wise_outstanding(outstanding_value, user, team_names, salesman)
+            total_outstanding_sum,formatted_data = self.process_customer_wise_outstanding(data)
 
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            # Return response with fetched data and total outstanding sum
+            return response(SUCCESS, {f"Customer wise {outstanding_value} Days O/S":formatted_data,"total_outstanding_sum": total_outstanding_sum}, HTTP_200_OK)
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-@drf_schema(serializer_name="SalesmanProductWiseReportSerializer",
+class CrUtilizationReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "CR Utilization Report"
+    @drf_schema(serializer_name="CRUtilizationReportSerializer",
             serializer_fields={
                 "team_name": serializers.CharField(),
                 "salesman": serializers.CharField()
             })
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def salesman_and_product_wise_report(request):
-    try:
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
-        user = request.user
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user, team_name)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            team_name = request.data.get("team_name")
+            salesman = request.data.get("salesman")
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user, team_name)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
 
-        REPORT_NAME = "Salesman and Product Wise Report"
+            conn = report_services.create_sql_server_connection()
+            cursor = conn.cursor()
+            sql_query = report_queries.cr_utilization_report_query(user, team_names, salesman)
+            cursor.execute(sql_query)
+        
+            # Fetch data
+            results = cursor.fetchall()
+            
+            # Initialize a nested dictionary to hold the grouped data
+            data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
+            
+            # Closing the cursor and connection
+            cursor.close()
+            conn.close()
+        
+            return response(SUCCESS, data, HTTP_200_OK)
+        
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+
+class SalesmanAndProductWiseReport(APIView):
+    REPORT_NAME = "Salesman and Product Wise Report"
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    def fetch_salesman_and_product_wise_report(self,user, team_names, salesman):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         sql_query = report_queries.salesman_and_product_wise_query(user, team_names, salesman)
         cursor.execute(sql_query)
-
         # Fetching all the rows
         rows = cursor.fetchall()
-
+        # Closing the cursor and connection
+        cursor.close()
+        conn.close()
+        return rows
+    
+    def process_salesman_and_product_wise_report(self,rows):
         # Grouping the data by product and salesman
         results = {}
         for row in rows:
@@ -530,40 +541,48 @@ def salesman_and_product_wise_report(request):
                 }
                 product_data['Salesmen'].append(salesman_data)
             formatted_data.append(product_data)
-
-        # Closing the cursor and connection
-        cursor.close()
-        conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, formatted_data, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
-@drf_schema(serializer_name="DateSerializer")
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def target_and_achieved_report(request):
-    try:
-        user =  request.user
+        return formatted_data
+    
+    @drf_schema(serializer_name="SalesmanProductWiseReportSerializer",
+        serializer_fields={
+            "team_name": serializers.CharField(),
+            "salesman": serializers.CharField()
+        })
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            team_name = request.data.get("team_name")
+            salesman = request.data.get("salesman")
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user, team_name)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
 
-        REPORT_NAME = 'Target and Achieved Report'
-        start_date = request.data.get("start_date", None)
-        end_date = request.data.get("end_date", None)
-        if not start_date or not end_date:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
-        pre_date = report_services.get_previous_date(end_date)
+            rows = self.fetch_salesman_and_product_wise_report(user, team_names, salesman)
+            formatted_data = self.process_salesman_and_product_wise_report(rows)
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, formatted_data, HTTP_200_OK)
+        
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+class TargetAndAchievedReport(APIView):
+    REPORT_NAME = 'Target and Achieved Report'
+    permission_classes = [IsAuthenticated, HasReportPermission]
+
+    def fetch_target_and_achieved_report(self,start_date,end_date,pre_date,user,team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         sql_query = report_queries.target_and_achieved_query(start_date, end_date, pre_date, user, team_names)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return results
     
+    def process_target_and_achieved_report(self,results):
         # Initialize the team sales summary dictionary with default values
         team_sales_summary = defaultdict(lambda: {
             'team_target_qty': 0,
@@ -615,38 +634,50 @@ def target_and_achieved_report(request):
         for team_name, team_summary in team_sales_summary.items():
             team_summary['team_name'] = team_name
             team_sales_summary_list.append(team_summary)
-            # Convert the team sales summary to a dictionary and wrap it in a response dictionary
-        cursor.close()
-        conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, team_sales_summary_list, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+            
+        return team_sales_summary_list
 
-@drf_schema(serializer_name="DateSerializer")
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def welding_electrode_product_sales_report(request):
-    try:
-        user = request.user
+    @drf_schema(serializer_name="DateSerializer")
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user)
+            user =  request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+
+            start_date = request.data.get("start_date", None)
+            end_date = request.data.get("end_date", None)
+            if not start_date or not end_date:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
+            pre_date = report_services.get_previous_date(end_date)
+            results = self.fetch_target_and_achieved_report(start_date,end_date,pre_date,user,team_names)
+
+            team_sales_summary_list = self.process_target_and_achieved_report(results)
+        
+
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, team_sales_summary_list, HTTP_200_OK)
+        
         except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-        REPORT_NAME = "Welding Electrode Product Sales Report"
-        start_date = request.data.get("start_date", None)
-        end_date = request.data.get("end_date", None)
-        if not start_date or not end_date:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
+class WeldingElectrodeProductSalesReports(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "Welding Electrode Product Sales Report"
 
+    def fetch_welding_electrode_product_sales(self,start_date, end_date, team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         sql_query = report_queries.welding_electrode_product_sales_query(start_date, end_date, team_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return results
 
+    def process_welding_electrode_product_sales(self,results):
         team_sales_summary = defaultdict(lambda: {
             'team_target_qty': 0,
             'team_sales_quantity': 0,
@@ -688,38 +719,46 @@ def welding_electrode_product_sales_report(request):
                 'team_achieved%': team_summary['team_achieved%'],
                 'sales_persons': team_summary['sales_persons']
             })
-
-        cursor.close()
-        conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, response_data, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
-@drf_schema(serializer_name="DateSerializer")
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def durastrong_tmt_product_sales_report(request):
-    try:
-        user = request.user
+        return response_data
+    
+    @drf_schema(serializer_name="DateSerializer")
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user)
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+
+            start_date = request.data.get("start_date", None)
+            end_date = request.data.get("end_date", None)
+            if not start_date or not end_date:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
+
+            results = self.fetch_welding_electrode_product_sales(start_date, end_date, team_names)
+            response_data = self.process_welding_electrode_product_sales(results)
+
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, response_data, HTTP_200_OK)
+        
         except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-        REPORT_NAME = "Durastrong TMT Product Sales Report"
-        start_date = request.data.get("start_date", None)
-        end_date = request.data.get("end_date", None)
-        if not start_date or not end_date:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
-
+class DurastrongTmtProductSalesReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "Durastrong TMT Product Sales Report"
+    def fetch_durastrong_tmt_product_sales(self,start_date, end_date, team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         sql_query = report_queries.durastrong_tmt_product_sales_query(start_date, end_date, team_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return results
 
+    def process_durastrong_tmt_product_sales(self,results):
         team_sales_summary = defaultdict(lambda: {
             'team_target_qty': 0,
             'team_sales_quantity': 0,
@@ -761,25 +800,41 @@ def durastrong_tmt_product_sales_report(request):
                 'team_achieved%': team_summary['team_achieved%'],
                 'sales_persons': team_summary['sales_persons']
             })
+        return response_data
+    
+    @drf_schema(serializer_name="DateSerializer")
+    def post(self,request):
+        try:
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
 
-        cursor.close()
-        conn.close()
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, response_data, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+            start_date = request.data.get("start_date", None)
+            end_date = request.data.get("end_date", None)
+            if not start_date or not end_date:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
+            
+            results = self.fetch_durastrong_tmt_product_sales(start_date, end_date, team_names)
 
-@drf_schema(serializer_name="DateSerializer")
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def sales_register_report(request):
-    try:
-        REPORT_NAME = "Sales Register Report"
-        start_date = request.data.get("start_date", None)
-        end_date = request.data.get("end_date", None)
-        if not start_date or not end_date:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
+            response_data = self.process_durastrong_tmt_product_sales(results)
+            
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, response_data, HTTP_200_OK)
+        
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+
+
+# Response is very huge not able to compare
+class SalesRegisterReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "Sales Register Report"
+
+    def fetch_and_process_sales_register_report(self,start_date,end_date):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         sql_query = report_queries.sales_register_query(start_date, end_date)
@@ -787,17 +842,34 @@ def sales_register_report(request):
         cursor.execute(sql_query)
         results = cursor.fetchall()
         data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, data, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+        cursor.close()
+        conn.close()
+        return data
+    
+    @drf_schema(serializer_name="DateSerializer")
+    def post(self,request):
+        try:
+            start_date = request.data.get("start_date", None)
+            end_date = request.data.get("end_date", None)
+            if not start_date or not end_date:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
+            
+            # Both fetch and process the data
+            data = self.fetch_and_process_sales_register_report(start_date,end_date)
+            
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, data, HTTP_200_OK)
+        
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def block_customers_list_report(request):
-    try:
-        REPORT_NAME = "Block Customers List Report"
+
+# Response is very huge not able to compare
+class BlockCustomersListReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "Block Customers List Report"
+    def fetch_and_process_block_customers_list_report(self):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         # Assuming you execute the query with the provided start_date and end_date values
@@ -805,32 +877,28 @@ def block_customers_list_report(request):
         cursor.execute(sql_query)
         results = cursor.fetchall()
         data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, data, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def all_customers_mom_report(request):
-    try:
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
-        user = request.user
+        cursor.close()
+        conn.close()
+        return data
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user, team_name)
+            data = self.fetch_and_process_block_customers_list_report()
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, data, HTTP_200_OK)
+        
         except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-        REPORT_NAME = "All Customers Month on Month Report"
+
+
+
+class AllCustomersMomReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "All Customers Month on Month Report"
+    def fetch_all_customers_mom_report(self,date_ranges,user, team_names, salesman):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        month_count = request.data.get("month_count", None)
-        if not month_count:
-            return Response({"error": "Please provide both Month count."}, status=400)
-        date_ranges = report_services.get_monthly_date_ranges(month_count)
-
         # list to hold the aggregated data
         result = []
 
@@ -864,27 +932,50 @@ def all_customers_mom_report(request):
                     "month_name": month,
                     "achvd_qty": achv_qty
                 })
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, result, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def product_wise_month_on_month_report(request):
-    try:
-        user = request.user
+        return result
+    
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            team_name = request.data.get("team_name")
+            salesman = request.data.get("salesman")
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user, team_name)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+            
+            month_count = request.data.get("month_count", None)
+            if not month_count:
+                return Response({"error": "Please provide both Month count."}, status=400)
+            date_ranges = report_services.get_monthly_date_ranges(month_count)
 
-        REPORT_NAME = "Product Wise Month On Month Report"
+            result = self.fetch_all_customers_mom_report(date_ranges,user, team_names, salesman)
+
+            
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, result, HTTP_200_OK)
+        
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+class ProductWiseMonthOnMonthReport(APIView):
+    REPORT_NAME = "Product Wise Month On Month Report"
+    permission_classes = [IsAuthenticated, HasReportPermission]
+
+    def process_product_wise_month_report(self,intermediate_result):
+        final_result = []
+        for item_category, months_data in intermediate_result.items():
+            month_list = [{month: value} for month, value in months_data.items()]
+            final_result.append({
+                "item_category": item_category,
+                "month_data": month_list
+            })
+        return final_result
+    
+    def fetch_product_wise_month_report(self,team_names,month_count):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        month_count = request.data.get("month_count", None)
         if not month_count:
             return Response({"error": "Please provide both start_date and end_date."}, status=400)
         date_ranges = report_services.get_monthly_date_ranges(month_count)
@@ -906,42 +997,42 @@ def product_wise_month_on_month_report(request):
                     intermediate_result[item_category] = {}
                 
                 intermediate_result[item_category][month] = achvd_qty
-
-        final_result = []
-
-        for item_category, months_data in intermediate_result.items():
-            month_list = [{month: value} for month, value in months_data.items()]
-            final_result.append({
-                "item_category": item_category,
-                "month_data": month_list
-            })
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, final_result, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated ,HasReportPermission])
-def review_product_wise_report(request):
-    try:
-        user = request.user
+        return intermediate_result
+    
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+            month_count = request.data.get("month_count", None)
+            intermediate_result = self.fetch_product_wise_month_report(team_names,month_count)
 
-        REPORT_NAME = "Review Product Wise Report"
+            final_result = self.process_product_wise_month_report(intermediate_result)
+            
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, final_result, HTTP_200_OK)
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+
+
+class ReviewProductWiseReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "Review Product Wise Report"
+    def fetch_review_product_wise_report(self,month_count, team_names):
         conn = report_services.create_sql_server_connection()
-        cursor = conn.cursor()
-        month_count = request.data.get("month_count", None)
-        if not month_count:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
+        cursor = conn.cursor()        
         sql_query = report_queries.review_product_wise_query(month_count, team_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
-        data = defaultdict(lambda: defaultdict(lambda: {"Target Qty": 0, "Months": defaultdict(float)}))
 
+        return results
+
+    def process_review_product_wise_report(self,results):
+        data = defaultdict(lambda: defaultdict(lambda: {"Target Qty": 0, "Months": defaultdict(float)}))
         # Process the results
         for row in results:
             team_name, product_cluster, target_qty, achv_qty, year, month = row
@@ -963,30 +1054,41 @@ def review_product_wise_report(request):
                 }
                 team_products[product] = product_dict
             result.append({team: team_products})
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, result, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+        return result
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, HasReportPermission])
-def target_customer_sales_report(request):
-    try:
-        team_name = request.data.get("team_name")
-        salesman = request.data.get("salesman")
-        user = request.user
+    def post(self,request):
+        
         try:
-            team_names = report_services.get_teamnames_for_user(user, team_name)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+            
+            month_count = request.data.get("month_count", None)
+            
+            if not month_count:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
 
-        REPORT_NAME = "Target Customer Sales Report"
+            data = self.fetch_review_product_wise_report(month_count, team_names)
+            result = self.process_review_product_wise_report(data)
+            
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, result, HTTP_200_OK)
+        
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+
+
+class TargetCustomerSalesReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "Target Customer Sales Report"
+
+    def fetch_and_process_target_customer_sales(self,month_count, user, team_names, salesman):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        month_count = request.data.get("month_count", None)
-        if not month_count:
-            return Response({"error": "Please provide both start_date and end_date."}, status=400)
         date_ranges = report_services.get_monthly_date_ranges(month_count)
 
         # Dictionary to hold the aggregated data
@@ -1018,26 +1120,38 @@ def target_customer_sales_report(request):
                     "month_name": month,
                     "achvd_qty": achv_qty
                 })
+        return aggregated_result
+    
 
-        # Convert aggregated result to the desired format
-        final_result = list(aggregated_result.values())
-        report_services.create_log(user=request.user,report_name=REPORT_NAME)
-        return response(SUCCESS, final_result, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-@api_view(["POST"])
-@permission_classes([IsAuthenticated, HasReportPermission])
-def review_salesman_wise_data(request):
-    try:
-        user = request.user
+    def post(self,request):
         try:
-            team_names = report_services.get_teamnames_for_user(user)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+            team_name = request.data.get("team_name")
+            salesman = request.data.get("salesman")
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user, team_name)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+            
+            month_count = request.data.get("month_count", None)
+            if not month_count:
+                return Response({"error": "Please provide both start_date and end_date."}, status=400)
 
-        REPORT_NAME = "Review SalesMan Wise Report"
+            aggregated_result  = self.fetch_and_process_target_customer_sales(month_count, user, team_names, salesman)
+            # Convert aggregated result to the desired format
+            final_result = list(aggregated_result.values())
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            return response(SUCCESS, final_result, HTTP_200_OK)
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+
+class ReviewSalesmanWiseData(APIView):
+    REPORT_NAME = "Review SalesMan Wise Report"
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    def fetch_review_salesman_wise_data(self,month_count,team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         # Assuming you execute the query with the provided start_date and end_date values
@@ -1047,21 +1161,22 @@ def review_salesman_wise_data(request):
         query1_data = [dict(zip([column[0] for column in cursor.description], row)) for row in results1]
         
         # Second Query Execution based on month_count
-        month_count = request.data.get("month_count", None)
-        if not month_count:
-            return Response({"error": "Please provide month_count."}, status=HTTP_400_BAD_REQUEST)
         
         date_ranges = report_services.get_monthly_date_ranges(month_count)
         query2_data = defaultdict(list)
 
         for item in date_ranges:
-            sql_query2 = report_queries.review_salesman_wise_query2(item['start_date'], item['end_date'], team_names)
-            cursor.execute(sql_query2)
-            results2 = cursor.fetchall()
-            data2 = [dict(zip([column[0] for column in cursor.description], row)) for row in results2]
-            month = item['month']
-            query2_data[month].extend(data2)
-        
+                sql_query2 = report_queries.review_salesman_wise_query2(item['start_date'], item['end_date'], team_names)
+                cursor.execute(sql_query2)
+                results2 = cursor.fetchall()
+                data2 = [dict(zip([column[0] for column in cursor.description], row)) for row in results2]
+                month = item['month']
+                query2_data[month].extend(data2)
+
+        return query1_data,query2_data
+    
+
+    def process_review_salesman_wise_data(self,query1_data, query2_data):
         # Combine the data
         teams = defaultdict(lambda: {
             "team_target_qty": 0,
@@ -1102,11 +1217,108 @@ def review_salesman_wise_data(request):
         for team_name, team_data in teams.items():
             team_data["team_name"] = team_name
             combined_data.append(team_data)
+        return combined_data
 
-        # Log the report creation
-        report_services.create_log(user=request.user, report_name=REPORT_NAME)
+    def post(self,request):
+        try:
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+
+            month_count = request.data.get("month_count", None)
+            if not month_count:
+                return Response({"error": "Please provide month_count."}, status=HTTP_400_BAD_REQUEST)
+            
+            query1_data, query2_data = self.fetch_review_salesman_wise_data(month_count,team_names)
+
+            combined_data = self.process_review_salesman_wise_data(query1_data, query2_data)
+        
+            # Log the report creation
+            report_services.create_log(user=request.user, report_name=self.REPORT_NAME)
+            return response(SUCCESS, combined_data, HTTP_200_OK)
+        except Exception as e:
+            logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
+
+
+
+class SalesmanKpiDashboard(APIView):
+    REPORT_NAME = ""
+    permission_classes = [IsAuthenticated]
+    def post(self,request):
+        user = request.user
+        # Fetch the queries for main data and customer data
+        main_query, customers_query = dashboard_queries.kpi_dashboard_queries(user)
+
+        # Create a connection to the SQL Server
+        conn = report_services.create_sql_server_connection()
+        cursor = conn.cursor()
+
+        # Execute the main query
+        cursor.execute(main_query)
+        main_results = cursor.fetchall()
+        main_data = [dict(zip([column[0] for column in cursor.description], row)) for row in main_results]
+
+        # Execute the customers query
+        cursor.execute(customers_query)
+        customers_results = cursor.fetchall()
+
+        # Initialize customers_data
+        customers_data = {"Target": 0, "Non Target": 0}
+        if customers_results:
+            for row in customers_results:
+                row_data = dict(zip([column[0] for column in cursor.description], row))
+                if row_data.get("Customer Type") == "Target":
+                    customers_data["Target"] = row_data.get("NewCustomersCreated", 0)
+                elif row_data.get("Customer Type") == "Non Target":
+                    customers_data["Non Target"] = row_data.get("NewCustomersCreated", 0)
+
+        # Merge customer data into each main data dictionary
+        for item in main_data:
+            item.update(customers_data)
+
+        # Prepare the final response data
+        final_data = main_data
+
+        return Response(final_data)
+
+
+
+
+# ================================== Not including ================================================
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def team_and_product_wise_report(request):
+    conn = report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    start_date = request.data.get("start_date", None)
+    end_date = request.data.get("end_date", None)
+    if not start_date or not end_date:
+        return Response({"error": "Please provide both start_date and end_date."}, status=400)
+    pre_date = report_services.get_previous_date(end_date)
+    sql_query = report_queries.team_and_product_wise_query(start_date,end_date, pre_date)
+    cursor.execute(sql_query)
+
+    # Fetching all the rows
+    rows = cursor.fetchall()
+
+    # Organizing data by product cluster
+    data_by_cluster = {}
+    for row in rows:
+        team_name, product_cluster, target_qty, achv_qty, achv_percent = row
+        if product_cluster not in data_by_cluster:
+            data_by_cluster[product_cluster] = {}
+        data_by_cluster[product_cluster][team_name] = {
+            'Target Qty': target_qty,
+            'Achv Qty': achv_qty,
+            'Achv %': achv_percent
+        }
     
-        return response(SUCCESS, combined_data, HTTP_200_OK)
-    except Exception as e:
-        logger.exception(f"an error occured while viewing the Report-{REPORT_NAME}: {e}")
-        return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+    # Closing the cursor and connection
+    cursor.close()
+    conn.close()
+    return Response({"Team wise product wise report": data_by_cluster})
+

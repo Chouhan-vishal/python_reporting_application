@@ -659,7 +659,7 @@ class TeamNames(APIView):
             if report_user_rules.is_admin(user):
                 manager_name = request.data.get("manager_name", None)
             else:
-                manager_name = user.full_name
+                manager_name = user.full_name.lower()
             sql_query = report_queries.get_team_names(manager_name)
             cursor.execute(sql_query)
             results = cursor.fetchall()
@@ -709,7 +709,7 @@ class SalesmanList(APIView):
     Returns:
         Response: Returns All the User with hierarchy managers.
     """
-    def get(self, request):
+    def post(self, request):
         try:
             team_name = request.data.get("team_name", None)
             conn = report_services.create_sql_server_connection()

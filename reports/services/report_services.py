@@ -129,7 +129,7 @@ class HasReportPermission(BasePermission):
             "Cr Utilization Report": "cr_utilization",
             "Salesman And Product Wise Report": "salesman_and_product_wise",
             "Target And Achieved Report": "target_and_achieved",
-            "Welding Electrode Product Sales Report": "welding_electrode",
+            "Welding Electrode Product Sales Reports": "welding_electrode",
             "Durastrong Tmt Product Sales Report": "durastrong_tmt_product_sales",
             "Sales Register Report": "sales_register",
             "Block Customers List Report": "block_customers_list",

@@ -37,8 +37,8 @@ class UserSerializer(serializers.ModelSerializer):
             role = validated_data.pop('role', None)
             hierarchy_obj = Hierarchy.objects.filter(name=role).first()
             reports_permission_data = validated_data.pop('permitted_reports', None)
-            permissions_dict = reports_permission_data.get('reports_permission', None)
-            is_admin = validated_data.get('is_admin', False)            
+            if reports_permission_data:
+                permissions_dict = reports_permission_data.get('reports_permission', None)          
             if not hierarchy_obj:
                 raise serializers.ValidationError(f"No hierarchy found for role '{role}'")
             validated_data['hierarchy'] = hierarchy_obj

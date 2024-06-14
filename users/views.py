@@ -34,7 +34,7 @@ from drf_spectacular import openapi
 
 import logging
 import os
-from reports.services import report_services
+from reports.services import report_services, report_user_rules
 
 logger = logging.getLogger('users')
 
@@ -635,7 +635,7 @@ class UserSearch(APIView):
         
 
 class TeamNames(APIView):
-    permission_classes = [IsAdminUser, IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         request=None,
@@ -653,10 +653,14 @@ class TeamNames(APIView):
             Response: Returns a list of team names.
         """
         try:
+            user = request.user
             conn = report_services.create_sql_server_connection()
             cursor = conn.cursor()
-            manager_name = request.data.get("manager_name", None)
-            sql_query = report_queries.team_names_query(manager_name)
+            if report_user_rules.is_admin(user):
+                manager_name = request.data.get("manager_name", None)
+            else:
+                manager_name = user.full_name
+            sql_query = report_queries.get_team_names(manager_name)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             team_names = [row[0] for row in results]

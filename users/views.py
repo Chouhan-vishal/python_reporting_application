@@ -613,7 +613,7 @@ class UserSearch(APIView):
             ),
     ]
     )
-    def get(self, request):
+    def post(self, request):
         try:
             serializer = UserSearchSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)

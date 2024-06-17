@@ -67,7 +67,7 @@ class UserSerializer(serializers.ModelSerializer):
             instance.email = validated_data.get('email', instance.email)
             instance.full_name = validated_data.get('full_name', instance.full_name)
             instance.team_name = validated_data.get('team_name', instance.team_name)
-            instance.manager_name = validated_data.get('team_name', instance.manager_name)
+            instance.manager_name = validated_data.get('manager_name', instance.manager_name)
             instance.phone_number = validated_data.get('phone_number', instance.phone_number)
             instance.is_active = validated_data.get('is_active', instance.is_active)
             instance.is_admin = validated_data.get('is_admin', instance.is_admin)

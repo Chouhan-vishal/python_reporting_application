@@ -1225,13 +1225,16 @@ def review_salesman_wise_query2(start_date = None, end_date = None, team_names =
     """
     return sql_query
 
-def get_team_names(manager_name):
+def get_team_names(manager_name = None):
+    sub_query = ''
+    if manager_name:
+        sub_query = f" WHERE LOWER(ST.[Reporting Manager Name]) = '{manager_name}'"
     sql_query = f"""
     SELECT DISTINCT
         [Team Name]
     FROM
         [dbo].[tbl_HierarchyMapping] ST WITH (NOLOCK)
-    WHERE LOWER(ST.[Reporting Manager Name]) = '{manager_name}'
+    {sub_query}
     """
     return sql_query
 

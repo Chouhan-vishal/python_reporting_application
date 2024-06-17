@@ -17,5 +17,6 @@ urlpatterns = [
     re_path(r'^teams/?$', views.TeamNames.as_view()),
     re_path(r'^managers/?$', views.ManagerList.as_view()),
     re_path(r'^salesmans/?$', views.SalesmanList.as_view()),
+    re_path(r'^admin-dashboard/?$', views.AdminDashboard.as_view()),
 ]
 

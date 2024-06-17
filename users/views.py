@@ -13,7 +13,7 @@ from reporting_application.constants import *
 from .services.utils import generate_otp, send_otp_email
 from datetime import datetime, timedelta
 from django.utils.timezone import now as aware_utcnow
-from django.db.models import Q
+from django.db.models import Q, Count
 from reports.services import report_services, report_queries
 from rest_framework.views import APIView
 from rest_framework import status
@@ -675,6 +675,7 @@ class TeamNames(APIView):
 
 
 class ManagerList(APIView):
+
     """
     Return Manager Users.
     Args:
@@ -682,6 +683,14 @@ class ManagerList(APIView):
     Returns:
         Response: Returns All the User with hierarchy managers.
     """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=None,
+        responses={HTTP_200_OK: OpenApiTypes.OBJECT},
+        description="Get a list of manager names."
+    )
     def get(self, request):
         try:
             conn = report_services.create_sql_server_connection()
@@ -709,6 +718,13 @@ class SalesmanList(APIView):
     Returns:
         Response: Returns All the User with hierarchy managers.
     """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=None,
+        responses={HTTP_200_OK: OpenApiTypes.OBJECT},
+        description="Get a list of salesman names."
+    )
     def post(self, request):
         try:
             team_name = request.data.get("team_name", None)
@@ -724,6 +740,35 @@ class SalesmanList(APIView):
             manager_names = [row[0] for row in results]
 
             return response(SUCCESS, manager_names, HTTP_200_OK)
+        except Exception as e:
+            logger.error(f'Error during manager names retrieval: {str(e)}')
+            return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)
+            
+class AdminDashboard(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    """
+    Return Admin dashboard data.
+    Args:
+        request (HttpRequest): None
+    Returns:
+        Response: Returns active users count, reports viewed data count and teams count .
+    """
+    def get(self, request):
+        try:
+            users_count = User.objects.filter(is_active= True).count()
+            conn = report_services.create_sql_server_connection()
+            cursor = conn.cursor()
+            sql_query = report_queries.get_team_names()
+            cursor.execute(sql_query)
+            teams = cursor.fetchall()
+            teams_count = len(teams)
+
+            report_data = UserActivityLog.objects.values('report').annotate(count=Count('report')).order_by('-count')
+            total_count = UserActivityLog.objects.count()
+            reports_count  = len(report_data)
+            final_data  = {"active_users": users_count, "total_teams": teams_count, "total_reports": reports_count,"reports_viewed": total_count, "reports_data": report_data}
+
+            return response(SUCCESS, {"reports count": final_data}, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during manager names retrieval: {str(e)}')
             return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)

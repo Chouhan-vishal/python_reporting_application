@@ -325,6 +325,7 @@ class Profile(APIView):
             data = serializer.data
             if not user.is_admin:
                 accessible_reports_list = [{"path":f"/{k}".replace("_", "-"), "title":" ".join([str(k).capitalize() for k in str(k).split("_")])} for k,v in user.permitted_reports.reports_permission.items() if v==True]
+                accessible_reports_list.append({'title':"KPI Dashboard", "path":'/kpi-dashboard'})
                 data['accessible_reports'] = accessible_reports_list
             logger.info(f'User with "email": {user.email} retrieved successfully')
             return response(SUCCESS, data, status.HTTP_200_OK)

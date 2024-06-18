@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 logger = logging.getLogger('reports')
 
 class SalesSummaryReport(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = 'Sales Summary Report'
     def fetch_sales_summary(self, start_date, end_date, pre_date,team_names):
         conn = report_services.create_sql_server_connection()
@@ -192,7 +192,7 @@ class SalesCollectionOutstandingReportView(APIView):
 
 class ProductWiseSalesSummary(APIView):
     REPORT_NAME = "Product Wise Sales Summary"
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
     def fetch_product_wise_sales_summary(self,start_date, end_date, pre_date, team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -229,8 +229,8 @@ class ProductWiseSalesSummary(APIView):
                 {
                     **dict(zip(columns, row)),
                     "pre_day_sales": row[columns.index("pre_day_sales")] if row[columns.index("pre_day_sales")] is not None else 0,
-                    "achievement_percentage": row[columns.index("achievement_percentage")] if row[columns.index("achievement_percentage")] is not None else 0,
-                    "target_qty": row[1] * month_count  # Assuming row[1] is the value you want to multiply by month_count
+                    "achievement_percentage": ((row[columns.index("target_qty")] * month_count) / row[columns.index("achvd_qty")]) * 100 if row[columns.index("achvd_qty")] != 0 else 0,
+                    "target_qty": row[columns.index("target_qty")] * month_count if row[columns.index("target_qty")] is not None else 0,
                 }
                 for row in results
             ]
@@ -500,7 +500,7 @@ class CrUtilizationReport(APIView):
 
 class SalesmanAndProductWiseReport(APIView):
     REPORT_NAME = "Salesman and Product Wise Report"
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
     def fetch_salesman_and_product_wise_report(self,user, team_names, salesman, month, year):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -577,7 +577,7 @@ class SalesmanAndProductWiseReport(APIView):
 
 class TargetAndAchievedReport(APIView):
     REPORT_NAME = 'Target and Achieved Report'
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
 
     def fetch_target_and_achieved_report(self,year,month,pre_date,user,team_names):
         conn = report_services.create_sql_server_connection()
@@ -672,7 +672,7 @@ class TargetAndAchievedReport(APIView):
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
 class WeldingElectrodeProductSalesReports(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Welding Electrode Product Sales Report"
 
     def fetch_welding_electrode_product_sales(self,start_date, end_date, team_names):
@@ -755,7 +755,7 @@ class WeldingElectrodeProductSalesReports(APIView):
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
 class DurastrongTmtProductSalesReport(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Durastrong TMT Product Sales Report"
     def fetch_durastrong_tmt_product_sales(self,start_date, end_date, team_names):
         conn = report_services.create_sql_server_connection()
@@ -841,7 +841,7 @@ class DurastrongTmtProductSalesReport(APIView):
 
 # Response is very huge not able to compare
 class SalesRegisterReport(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Sales Register Report"
 
     def fetch_and_process_sales_register_report(self,start_date,end_date, team_names):
@@ -882,7 +882,7 @@ class SalesRegisterReport(APIView):
 
 # Response is very huge not able to compare
 class BlockCustomersListReport(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Block Customers List Report"
     def fetch_and_process_block_customers_list_report(self, team_names):
         conn = report_services.create_sql_server_connection()
@@ -1042,7 +1042,7 @@ class ProductWiseMonthOnMonthReport(APIView):
 
 
 class ReviewProductWiseReport(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Review Product Wise Report"
     def fetch_review_product_wise_report(self,month_count, team_names, salesman):
         conn = report_services.create_sql_server_connection()
@@ -1174,7 +1174,7 @@ class TargetCustomerSalesReport(APIView):
 
 class ReviewSalesmanWiseData(APIView):
     REPORT_NAME = "Review SalesMan Wise Report"
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasReportPermission]
     def fetch_review_salesman_wise_data(self,month_count,team_names, salesman):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()

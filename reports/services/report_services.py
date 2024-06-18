@@ -111,6 +111,26 @@ def get_teamnames_for_user(user, team_name = None):
     except Exception as e:
         raise e
 
+def count_months(start_date, end_date):
+    """
+    This function calculates the number of months between two dates.
+    
+    Parameters:
+    start_date (str): The start date in the format 'YYYY-MM-DD'.
+    end_date (str): The end date in the format 'YYYY-MM-DD'.
+    
+    Returns:
+    int: The number of months between the start and end dates.
+    """
+    # Convert string dates to datetime objects
+    start_date = datetime.strptime(start_date, '%Y-%m-%d')
+    end_date = datetime.strptime(end_date, '%Y-%m-%d')
+    
+    # Calculate the number of months between the two dates
+    month_count = (end_date.year - start_date.year) * 12 + end_date.month - start_date.month + 1
+    
+    return month_count
+
 
 def create_log(user, report_name):
     activity_log = UserActivityLog.objects.create(user=user, report=report_name, log=f'{report_name} is viewed')

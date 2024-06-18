@@ -563,7 +563,7 @@ def team_and_product_wise_query(start_date, end_date, pre_date):
     return sql_query
 
 
-def salesman_and_product_wise_query(user, team_names, salesman=None):
+def salesman_and_product_wise_query(user, team_names, month, year, salesman=None):
     if is_salesman(user):
         full_name = user.full_name
         sub_query = f"AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
@@ -603,7 +603,7 @@ def salesman_and_product_wise_query(user, team_names, salesman=None):
                 [Item Category]
         ) TC 
             ON TC.[Sales Person] = ST.[Sales Person] AND TC.[Product cluster] = IL.[Item Category]
-        WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE()) AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE()) AND SV.[Item Details] <> 'Welding Electrodes' 
+        WHERE YEAR(SV.[Voucher Date]) = {year} AND MONTH(SV.[Voucher Date]) = {month} AND SV.[Item Details] <> 'Welding Electrodes' 
         {sub_query}
         GROUP BY 
             ST.[Sales Person],
@@ -624,7 +624,7 @@ def salesman_and_product_wise_query(user, team_names, salesman=None):
      """
     return sql_query
 
-def target_and_achieved_query(start_date, end_date, pre_day, user, team_names):
+def target_and_achieved_query(year, month, pre_day, user, team_names):
 
     if is_salesman(user):
         full_name = user.full_name
@@ -669,7 +669,7 @@ def target_and_achieved_query(start_date, end_date, pre_day, user, team_names):
         INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
             ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
             AND SV.[Item Details] <> 'Welding Electrodes'
-            AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
+            AND YEAR(SV.[Voucher Date]) = {year} AND MONTH(SV.[Voucher Date]) = {month} 
         GROUP BY 
             ST.[Team Name],    
             [Sales Person],
@@ -684,7 +684,7 @@ def target_and_achieved_query(start_date, end_date, pre_day, user, team_names):
         INNER JOIN [dbo].[tbl_TargetCustomers] TC WITH (NOLOCK)
             ON SV.[Customer ID] = TC.[Customer ID]
         WHERE SV.[Item Details] <> 'Welding Electrodes'
-        AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
+        AND YEAR(SV.[Voucher Date]) = {year} AND MONTH(SV.[Voucher Date]) = {month}
         GROUP BY 
             TC.[Team Name], TC.[Sales Person]
     ),
@@ -899,12 +899,38 @@ def durastrong_tmt_product_sales_query(start_date, end_date, team_names):
     """
     return sql_query
 
-def sales_register_query(start_date, end_date):
-    sql_query = f"select * from tbl_SalesVouchers where [Voucher Date] BETWEEN '{start_date}' AND '{end_date}'"
+def sales_register_query(start_date, end_date, team_names = None):
+    if team_names:
+        sub_query = f"AND t.[Team Name] IN  ({team_names})"
+    sql_query = f"""
+    SELECT
+        v.*,
+        t.[Team Name]
+    FROM
+        tbl_SalesVouchers v
+    JOIN
+        tbl_SalesTeam t ON v.[Sales Person -2] = t.[Sales Person]
+    WHERE
+        v.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
+    {sub_query}
+    """
     return sql_query
 
-def block_customers_list_query():
-    sql_query = f"SELECT * FROM tbl_CustomerList WHERE LOWER([Ledger Status]) LIKE '%inactive%';"
+def block_customers_list_query(team_names = None):
+    if team_names:
+        sub_query = f"AND t.[Team Name] IN ({team_names})"
+    sql_query = f"""
+    SELECT
+        c.*,
+        t.[Team Name]
+    FROM
+        tbl_CustomerList c
+    JOIN
+        tbl_SalesTeam t ON c.[Sales Person] = t.[Sales Person]
+    WHERE
+        LOWER(c.[Ledger Status]) LIKE '%inactive%'
+    {sub_query}
+    """
     return sql_query
 
 
@@ -943,7 +969,7 @@ def all_customers_sales_query(start_date, end_date, user, team_names, salesman =
     return sql_query
 
 
-def product_wise_month_on_month_query(start_date, end_date, team_names):
+def product_wise_month_on_month_query(start_date, end_date, team_names, salesman=None):
     sql_query = f"""
     WITH Sales AS (
     SELECT          
@@ -968,9 +994,13 @@ def product_wise_month_on_month_query(start_date, end_date, team_names):
 
     return sql_query
 
-def review_product_wise_query(month_count, team_names):
+def review_product_wise_query(month_count, team_names, salesman=None):
+    sub_query, sub_query2 = ["", ""]
     if team_names:
         sub_query = f"WHERE [Team Name] in ({team_names})"
+        if salesman:
+            sub_query2 = f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
+            sub_query3 = f"AND (LOWER(SV.[Sales Person]) = LOWER('{salesman}'))"
     sql_query = f"""
     WITH TargetCustomers AS (
         SELECT 
@@ -979,6 +1009,7 @@ def review_product_wise_query(month_count, team_names):
             ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10,2))), 2) AS [Target Qty]
         FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)
         WHERE SV.[Item Category] <> 'Welding Electrodes'
+        {sub_query3}
         GROUP BY 
             SV.[Team Name],
             SV.[Item Category]
@@ -1014,6 +1045,7 @@ def review_product_wise_query(month_count, team_names):
             FROM dbo.tbl_ItemsList IL WITH (NOLOCK)
         ) IL ON IL.[Item Details] = SV.[Item Details]
         WHERE SV.[Voucher Date] >= DATEADD(MONTH, -{month_count}, GETDATE())
+        {sub_query2}
         AND SV.[Item Details] <> 'Welding Electrodes'
         GROUP BY
             ST.[Team Name], 
@@ -1124,10 +1156,12 @@ def target_customers_sales_query(start_date, end_date, user, team_names, salesma
     """
     return sql_query
 
-def review_salesman_wise_query1(team_names):
+def review_salesman_wise_query1(team_names, salesman = None):
 
     if team_names:
         sub_query = f"WHERE ST.[Team Name] in ({team_names})"
+        if salesman:
+            sub_query += f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
 
     sql_query = f"""
     WITH SalesTeamCTE AS (
@@ -1156,8 +1190,7 @@ def review_salesman_wise_query1(team_names):
         SELECT      
             TC.[Team Name],
             TC.[Sales Person],
-            SUM(SV.[Qty(MTs)]) AS [Achv Qty], 
-            COUNT(DISTINCT SV.[Customer ID]) AS [Target Customer Reached]
+            SUM(SV.[Qty(MTs)]) AS [Achv Qty]
         FROM [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
         INNER JOIN [dbo].[tbl_TargetCustomers] TC WITH (NOLOCK)
             ON SV.[Customer ID] = TC.[Customer ID]
@@ -1166,20 +1199,35 @@ def review_salesman_wise_query1(team_names):
         GROUP BY 
             TC.[Team Name], TC.[Sales Person]
     ),
+    CustomerReached AS (
+        SELECT      
+            TC.[Team Name],
+            TC.[Sales Person],
+            COUNT(DISTINCT CASE WHEN [Qty(MTs)] > 0 THEN SV.[Customer ID] ELSE NULL END) AS [Target Customer Reached]
+        FROM [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
+        INNER JOIN [dbo].[tbl_TargetCustomers] TC WITH (NOLOCK)
+            ON SV.[Customer ID] = TC.[Customer ID]
+        WHERE SV.[Item Details] <> 'Welding Electrodes'
+        AND YEAR(SV.[Voucher Date]) = YEAR(GETDATE()) 
+            AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE())
+        GROUP BY 
+            TC.[Team Name], TC.[Sales Person]
+    ),
     Outstanding AS (
-        SELECT  
+        SELECT
             ST.[Team Name],
             ST.[Sales Person],
             SUM(CASE WHEN OS.Ageing > 25 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 25 Days Outstanding]
         FROM [dbo].[tbl_OutStandings] OS WITH (NOLOCK)
         INNER JOIN [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
             ON LTRIM(RTRIM(OS.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
-        WHERE 
+        WHERE
             CAST(OS.[Created Date] AS DATE) = (
-                SELECT MAX(CAST([Created Date] AS DATE)) 
+                SELECT MAX(CAST([Created Date] AS DATE))
                 FROM [dbo].[tbl_OutStandings] OS2
+                WHERE OS2.[Sales Person -2] = OS.[Sales Person -2]
             )
-        GROUP BY 
+        GROUP BY
             ST.[Team Name], ST.[Sales Person]
     )
     SELECT DISTINCT 
@@ -1188,11 +1236,11 @@ def review_salesman_wise_query1(team_names):
         ISNULL(TC.[Target Qty], 0) AS [Target Qty],  
         ISNULL(OS.[Above 25 Days Outstanding], 0) AS [Above 25 Days Outstanding],
         ISNULL(TC.[Target Customer Count], 0) AS [Target Customer Count],
-        ISNULL(S.[Target Customer Reached], 0) AS [Target Customer Reached]
+        ISNULL(CR.[Target Customer Reached], 0) AS [Target Customer Reached]
     FROM SalesTeamCTE ST
     LEFT JOIN TargetCustomers TC ON ST.[Team Name] = TC.[Team Name] AND ST.[Sales Person] = TC.[Sales Person]
     LEFT JOIN Outstanding OS ON ST.[Team Name] = OS.[Team Name] AND ST.[Sales Person] = OS.[Sales Person]
-    LEFT JOIN Sales S ON ST.[Team Name] = S.[Team Name] AND ST.[Sales Person] = S.[Sales Person]
+    LEFT JOIN CustomerReached CR ON ST.[Team Name] = CR.[Team Name] AND ST.[Sales Person] = CR.[Sales Person]
     {sub_query}
     ORDER BY ST.[Team Name], ST.[Sales Person];
     """

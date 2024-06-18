@@ -33,7 +33,7 @@ class SalesSummaryReport(APIView):
             conn.close()
         return results
     
-    def process_sales_results(self, results):
+    def process_sales_results(self, results, month_count = 1):
         team_sales_summary = defaultdict(lambda: {
             'team_target_qty': 0,
             'team_sales_quantity': 0,
@@ -46,12 +46,12 @@ class SalesSummaryReport(APIView):
             team_name, sales_person, target_qty, sales_quantity, achieved_pct, pre_day_sales_value = row
             sales_summary = {
                 'sales_person': sales_person,
-                'target_qty': target_qty,
+                'target_qty': target_qty * month_count,
                 'sales_quantity': sales_quantity,
                 'achieved%': achieved_pct,
                 'PreDaySalesValue': pre_day_sales_value,
             }
-            team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty']
+            team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty'] * int(month_count)
             team_sales_summary[team_name]['team_sales_quantity'] += sales_summary['sales_quantity']
             team_sales_summary[team_name]['TeamPreDaySalesValue'] += sales_summary['PreDaySalesValue']
             team_sales_summary[team_name]['sales_persons'].append(sales_summary)
@@ -88,9 +88,10 @@ class SalesSummaryReport(APIView):
             if not start_date or not end_date:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
+            month_count  = report_services.count_months(start_date, end_date)            
             pre_date = report_services.get_previous_date(end_date)
             results = self.fetch_sales_summary(start_date, end_date, pre_date, team_names)
-            team_sales_summary = self.process_sales_results(results)
+            team_sales_summary = self.process_sales_results(results, month_count)
             response_data = self.format_response_data(team_sales_summary)
             
             
@@ -218,6 +219,8 @@ class ProductWiseSalesSummary(APIView):
 
             if not start_date or not end_date:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
+            
+            month_count  = report_services.count_months(start_date, end_date)
 
             pre_date = report_services.get_previous_date(end_date)
             results,columns = self.fetch_product_wise_sales_summary(start_date, end_date, pre_date, team_names)
@@ -226,7 +229,8 @@ class ProductWiseSalesSummary(APIView):
                 {
                     **dict(zip(columns, row)),
                     "pre_day_sales": row[columns.index("pre_day_sales")] if row[columns.index("pre_day_sales")] is not None else 0,
-                    "achievement_percentage": row[columns.index("achievement_percentage")] if row[columns.index("achievement_percentage")] is not None else 0
+                    "achievement_percentage": ((row[columns.index("target_qty")] * month_count) / row[columns.index("achvd_qty")]) * 100 if row[columns.index("achvd_qty")] != 0 else 0,
+                    "target_qty": row[columns.index("target_qty")] * month_count if row[columns.index("target_qty")] is not None else 0,
                 }
                 for row in results
             ]
@@ -497,10 +501,10 @@ class CrUtilizationReport(APIView):
 class SalesmanAndProductWiseReport(APIView):
     REPORT_NAME = "Salesman and Product Wise Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
-    def fetch_salesman_and_product_wise_report(self,user, team_names, salesman):
+    def fetch_salesman_and_product_wise_report(self,user, team_names, salesman, month, year):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.salesman_and_product_wise_query(user, team_names, salesman)
+        sql_query = report_queries.salesman_and_product_wise_query(user, team_names, month, year, salesman)
         cursor.execute(sql_query)
         # Fetching all the rows
         rows = cursor.fetchall()
@@ -552,13 +556,17 @@ class SalesmanAndProductWiseReport(APIView):
         try:
             team_name = request.data.get("team_name")
             salesman = request.data.get("salesman")
+            year = request.data.get("year")
+            month = request.data.get("month")
+            if not year or not month:
+                return Response({"error": "Please provide both year and month."}, status=400)
             user = request.user
             try:
                 team_names = report_services.get_teamnames_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
-            rows = self.fetch_salesman_and_product_wise_report(user, team_names, salesman)
+            rows = self.fetch_salesman_and_product_wise_report(user, team_names, salesman, month, year)
             formatted_data = self.process_salesman_and_product_wise_report(rows)
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, formatted_data, HTTP_200_OK)
@@ -571,10 +579,10 @@ class TargetAndAchievedReport(APIView):
     REPORT_NAME = 'Target and Achieved Report'
     permission_classes = [IsAuthenticated, HasReportPermission]
 
-    def fetch_target_and_achieved_report(self,start_date,end_date,pre_date,user,team_names):
+    def fetch_target_and_achieved_report(self,year,month,pre_date,user,team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.target_and_achieved_query(start_date, end_date, pre_date, user, team_names)
+        sql_query = report_queries.target_and_achieved_query(month, year, pre_date, user, team_names)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
@@ -646,12 +654,12 @@ class TargetAndAchievedReport(APIView):
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
-            start_date = request.data.get("start_date", None)
-            end_date = request.data.get("end_date", None)
-            if not start_date or not end_date:
-                return Response({"error": "Please provide both start_date and end_date."}, status=400)
-            pre_date = report_services.get_previous_date(end_date)
-            results = self.fetch_target_and_achieved_report(start_date,end_date,pre_date,user,team_names)
+            month = request.data.get("month", None)
+            year = request.data.get("year", None)
+            if not month or not year:
+                return Response({"error": "Please provide both month and year."}, status=400)
+            pre_date = report_services.get_previous_date(str(datetime.today().date()))
+            results = self.fetch_target_and_achieved_report(month,year,pre_date,user,team_names)
 
             team_sales_summary_list = self.process_target_and_achieved_report(results)
         
@@ -677,7 +685,7 @@ class WeldingElectrodeProductSalesReports(APIView):
         conn.close()
         return results
 
-    def process_welding_electrode_product_sales(self,results):
+    def process_welding_electrode_product_sales(self, results, month_count = 1):
         team_sales_summary = defaultdict(lambda: {
             'team_target_qty': 0,
             'team_sales_quantity': 0,
@@ -694,12 +702,12 @@ class WeldingElectrodeProductSalesReports(APIView):
 
             sales_summary = {
                 'sales_person': sales_person,
-                'target_qty': target_qty,
+                'target_qty': target_qty * month_count,
                 'sales_quantity': sales_quantity,
                 'achieved%': achieved_percentage
             }
 
-            team_sales_summary[team_name]['team_target_qty'] += target_qty
+            team_sales_summary[team_name]['team_target_qty'] += target_qty * month_count
             team_sales_summary[team_name]['team_sales_quantity'] += sales_quantity
             team_sales_summary[team_name]['sales_persons'].append(sales_summary)
 
@@ -734,9 +742,10 @@ class WeldingElectrodeProductSalesReports(APIView):
             end_date = request.data.get("end_date", None)
             if not start_date or not end_date:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
-
+            
+            month_count  = report_services.count_months(start_date, end_date)
             results = self.fetch_welding_electrode_product_sales(start_date, end_date, team_names)
-            response_data = self.process_welding_electrode_product_sales(results)
+            response_data = self.process_welding_electrode_product_sales(results, month_count)
 
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, response_data, HTTP_200_OK)
@@ -758,7 +767,7 @@ class DurastrongTmtProductSalesReport(APIView):
         conn.close()
         return results
 
-    def process_durastrong_tmt_product_sales(self,results):
+    def process_durastrong_tmt_product_sales(self,results, month_count = 1):
         team_sales_summary = defaultdict(lambda: {
             'team_target_qty': 0,
             'team_sales_quantity': 0,
@@ -775,12 +784,12 @@ class DurastrongTmtProductSalesReport(APIView):
 
             sales_summary = {
                 'sales_person': sales_person,
-                'target_qty': target_qty,
+                'target_qty': target_qty * month_count,
                 'sales_quantity': sales_quantity,
                 'achieved%': achieved_percentage
             }
 
-            team_sales_summary[team_name]['team_target_qty'] += target_qty
+            team_sales_summary[team_name]['team_target_qty'] += target_qty * month_count
             team_sales_summary[team_name]['team_sales_quantity'] += sales_quantity
             team_sales_summary[team_name]['sales_persons'].append(sales_summary)
 
@@ -816,9 +825,10 @@ class DurastrongTmtProductSalesReport(APIView):
             if not start_date or not end_date:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
+            month_count  = report_services.count_months(start_date, end_date)
             results = self.fetch_durastrong_tmt_product_sales(start_date, end_date, team_names)
 
-            response_data = self.process_durastrong_tmt_product_sales(results)
+            response_data = self.process_durastrong_tmt_product_sales(results, month_count)
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, response_data, HTTP_200_OK)
@@ -834,10 +844,10 @@ class SalesRegisterReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Sales Register Report"
 
-    def fetch_and_process_sales_register_report(self,start_date,end_date):
+    def fetch_and_process_sales_register_report(self,start_date,end_date, team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.sales_register_query(start_date, end_date)
+        sql_query = report_queries.sales_register_query(start_date, end_date, team_names)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
@@ -849,13 +859,18 @@ class SalesRegisterReport(APIView):
     @drf_schema(serializer_name="DateSerializer")
     def post(self,request):
         try:
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
             start_date = request.data.get("start_date", None)
             end_date = request.data.get("end_date", None)
             if not start_date or not end_date:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
             # Both fetch and process the data
-            data = self.fetch_and_process_sales_register_report(start_date,end_date)
+            data = self.fetch_and_process_sales_register_report(start_date,end_date, team_names)
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, data, HTTP_200_OK)
@@ -869,11 +884,11 @@ class SalesRegisterReport(APIView):
 class BlockCustomersListReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Block Customers List Report"
-    def fetch_and_process_block_customers_list_report(self):
+    def fetch_and_process_block_customers_list_report(self, team_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         # Assuming you execute the query with the provided start_date and end_date values
-        sql_query = report_queries.block_customers_list_query()
+        sql_query = report_queries.block_customers_list_query(team_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
         data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
@@ -882,7 +897,12 @@ class BlockCustomersListReport(APIView):
         return data
     def post(self,request):
         try:
-            data = self.fetch_and_process_block_customers_list_report()
+            user = request.user
+            try:
+                team_names = report_services.get_teamnames_for_user(user)
+            except Exception as e:
+                return Response({"error": str(e)}, status=400)
+            data = self.fetch_and_process_block_customers_list_report(team_names)
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, data, HTTP_200_OK)
         
@@ -973,7 +993,7 @@ class ProductWiseMonthOnMonthReport(APIView):
             })
         return final_result
     
-    def fetch_product_wise_month_report(self,team_names,month_count):
+    def fetch_product_wise_month_report(self,team_names,month_count, salesman):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         if not month_count:
@@ -983,7 +1003,7 @@ class ProductWiseMonthOnMonthReport(APIView):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.product_wise_month_on_month_query(item['start_date'], item['end_date'], team_names)
+            sql_query = report_queries.product_wise_month_on_month_query(item['start_date'], item['end_date'], team_names, salesman)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
@@ -1002,12 +1022,14 @@ class ProductWiseMonthOnMonthReport(APIView):
     def post(self,request):
         try:
             user = request.user
+            team_name = request.data.get("team_name")
+            salesman = request.data.get("salesman")
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                team_names = report_services.get_teamnames_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             month_count = request.data.get("month_count", None)
-            intermediate_result = self.fetch_product_wise_month_report(team_names,month_count)
+            intermediate_result = self.fetch_product_wise_month_report(team_names,month_count, salesman)
 
             final_result = self.process_product_wise_month_report(intermediate_result)
             
@@ -1022,10 +1044,10 @@ class ProductWiseMonthOnMonthReport(APIView):
 class ReviewProductWiseReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Review Product Wise Report"
-    def fetch_review_product_wise_report(self,month_count, team_names):
+    def fetch_review_product_wise_report(self,month_count, team_names, salesman):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()        
-        sql_query = report_queries.review_product_wise_query(month_count, team_names)
+        sql_query = report_queries.review_product_wise_query(month_count, team_names, salesman)
         cursor.execute(sql_query)
         results = cursor.fetchall()
 
@@ -1059,9 +1081,11 @@ class ReviewProductWiseReport(APIView):
     def post(self,request):
         
         try:
+            team_name = request.data.get("team_name")
+            salesman = request.data.get("salesman")
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                team_names = report_services.get_teamnames_for_user(user,team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             
@@ -1070,7 +1094,7 @@ class ReviewProductWiseReport(APIView):
             if not month_count:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
 
-            data = self.fetch_review_product_wise_report(month_count, team_names)
+            data = self.fetch_review_product_wise_report(month_count, team_names, salesman)
             result = self.process_review_product_wise_report(data)
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
@@ -1151,11 +1175,11 @@ class TargetCustomerSalesReport(APIView):
 class ReviewSalesmanWiseData(APIView):
     REPORT_NAME = "Review SalesMan Wise Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
-    def fetch_review_salesman_wise_data(self,month_count,team_names):
+    def fetch_review_salesman_wise_data(self,month_count,team_names, salesman):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         # Assuming you execute the query with the provided start_date and end_date values
-        sql_query1 = report_queries.review_salesman_wise_query1(team_names)
+        sql_query1 = report_queries.review_salesman_wise_query1(team_names, salesman)
         cursor.execute(sql_query1)
         results1 = cursor.fetchall()
         query1_data = [dict(zip([column[0] for column in cursor.description], row)) for row in results1]
@@ -1222,8 +1246,10 @@ class ReviewSalesmanWiseData(APIView):
     def post(self,request):
         try:
             user = request.user
+            team_name = request.data.get("team_name")
+            salesman = request.data.get("salesman")
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                team_names = report_services.get_teamnames_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -1231,7 +1257,7 @@ class ReviewSalesmanWiseData(APIView):
             if not month_count:
                 return Response({"error": "Please provide month_count."}, status=HTTP_400_BAD_REQUEST)
             
-            query1_data, query2_data = self.fetch_review_salesman_wise_data(month_count,team_names)
+            query1_data, query2_data = self.fetch_review_salesman_wise_data(month_count,team_names, salesman)
 
             combined_data = self.process_review_salesman_wise_data(query1_data, query2_data)
         

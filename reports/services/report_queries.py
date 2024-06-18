@@ -995,7 +995,7 @@ def product_wise_month_on_month_query(start_date, end_date, team_names, salesman
     return sql_query
 
 def review_product_wise_query(month_count, team_names, salesman=None):
-    sub_query, sub_query2 = ["", ""]
+    sub_query, sub_query2, sub_query3 = ["", "", ""]
     if team_names:
         sub_query = f"WHERE [Team Name] in ({team_names})"
         if salesman:

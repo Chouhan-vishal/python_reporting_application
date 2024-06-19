@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import authenticate
 from .services.auth_token import AuthTokenService
 from rest_framework_simplejwt.tokens import Token, RefreshToken, AccessToken
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from .services.utils import response
 from django.core.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -456,10 +457,11 @@ class VerifyOTP(APIView):
                 raise Exception(f"User with email {email} does not exist")
             otp_object = OTP.objects.filter(user=user, otp=otp).first()
             if otp_object and otp_object.is_valid():
+                token = PasswordResetTokenGenerator().make_token(user)
                 # OTP is valid
                 otp_object.delete()
                 logger.info(f'OTP verified for user {user.email}')
-                return response(SUCCESS, {MESSAGE: "OTP verified successfully"}, HTTP_200_OK)
+                return response(SUCCESS, {MESSAGE: "OTP verified successfully", "password_reset_token": token}, HTTP_200_OK)
             elif not otp_object:
                 # OTP is invalid
                 logger.error(f'OTP is invalid for user {user.email}')
@@ -505,10 +507,14 @@ class ResetPassword(APIView):
                 raise Exception(f"User with email {email} does not exist")
             new_password = request.data.get('password')
             confirm_password = request.data.get('confirm_password')
+            token = request.data.get('token')
+            if not PasswordResetTokenGenerator().check_token(user, token):
+                return response(FAILED, {ERROR: 'Invalid or expired token'}, HTTP_400_BAD_REQUEST)
 
             if not new_password or not confirm_password:
                 logger.error(f'New password and confirm password are required')
                 return response(FAILED, {ERROR: 'New password and confirm password are required'}, HTTP_400_BAD_REQUEST)
+            
 
             if new_password != confirm_password:
                 logger.error(f'New password and confirm password do not match')

@@ -121,6 +121,13 @@ class Login(APIView):
 
         try:
             email = request.data.get('email')
+            try:
+                user = User.objects.get(email=email)
+                if not user.is_active:
+                    return response(FAILED, {MESSAGE: "This user is deactivated. Please contact with your administrator"}, HTTP_400_BAD_REQUEST)
+            except User.DoesNotExist:
+                return response(FAILED, {MESSAGE: "User does not exist"}, HTTP_400_BAD_REQUEST)
+
             password = request.data.get('password')
             if not (email and password):
                 raise Exception(f"email and password are required") 
@@ -209,7 +216,7 @@ class Users(APIView):
                 return Response({ERROR: 'Error during user detail retrieval'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             try:
-                users = User.objects.all()
+                users = User.objects.filter(is_admin = False)
                 serializer = UserSerializer(users, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             except Exception as e:

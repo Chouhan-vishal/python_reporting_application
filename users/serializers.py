@@ -35,7 +35,7 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         with transaction.atomic():
             role = validated_data.pop('role', None)
-            hierarchy_obj = Hierarchy.objects.filter(name=role).first()
+            hierarchy_obj = Hierarchy.objects.filter(name=role.lower()).first()
             reports_permission_data = validated_data.pop('permitted_reports', None)
             if reports_permission_data:
                 permissions_dict = reports_permission_data.get('reports_permission', None)          
@@ -58,7 +58,7 @@ class UserSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             hierarchy_name = validated_data.pop('role', None)
             if hierarchy_name:
-                hierarchy_obj = Hierarchy.objects.filter(name=hierarchy_name).first()
+                hierarchy_obj = Hierarchy.objects.filter(name=hierarchy_name.lower()).first()
                 if hierarchy_obj is None:
                     raise serializers.ValidationError(f'hierarchy with name {hierarchy_name} does not exist ')
                 else:

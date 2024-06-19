@@ -490,7 +490,7 @@ class CrUtilizationReport(APIView):
             # Closing the cursor and connection
             cursor.close()
             conn.close()
-        
+            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, data, HTTP_200_OK)
         
         except Exception as e:

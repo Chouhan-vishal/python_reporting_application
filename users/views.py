@@ -10,11 +10,11 @@ from django.core.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from dotenv import load_dotenv
 from reporting_application.constants import *
-from .services.utils import generate_otp, send_otp_email
+from .services.utils import generate_otp, send_otp_email, create_log
 from datetime import datetime, timedelta
 from django.utils.timezone import now as aware_utcnow
 from django.db.models import Q, Count
-from reports.services import report_services, report_queries
+from reports.services import report_services, report_queries, report_user_rules
 from rest_framework.views import APIView
 from rest_framework import status
 import pyotp
@@ -33,14 +33,8 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular import openapi
 
 import logging
-import os
-from reports.services import report_services, report_user_rules
 
 logger = logging.getLogger('users')
-
-
-
-
 
 
 class TwoFactorAuthenticationView(APIView):
@@ -251,6 +245,10 @@ class Users(APIView):
             serializer = UserSerializer(user, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
+                try:
+                    create_log(request.user, user.full_name, "updated")
+                except:
+                    logger.error(f'Error in creating log for User updation')
                 return Response(serializer.data, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
@@ -290,7 +288,11 @@ class Users(APIView):
         try:
             serializer = UserSerializer(data=request.data)
             if serializer.is_valid():
-                serializer.save()
+                user = serializer.save()
+                try:
+                    create_log(request.user, user.full_name, "created")
+                except:
+                    logger.error(f'Error in creating log for User creation')
                 return response(SUCCESS, serializer.data, HTTP_201_CREATED)
             logger.debug(f'User creation failed: {serializer.errors}')
             raise ValidationError(f'User creation failed: {str(serializer.errors)}')

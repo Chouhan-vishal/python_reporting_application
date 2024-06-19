@@ -9,7 +9,7 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
-
+from users.models import UserActivityLog
 
     
 def drf_schema(serializer_name, serializer_fields=None):
@@ -46,14 +46,6 @@ def send_email(context,to_email,template_name,subject):
     email.attach_alternative(html_message, 'text/html')
     email.send()
     
-    
-# def send_otp_email(email, otp):
-#     subject = 'Password Reset OTP'
-#     to_email = email
-#     context = {'otp':otp}
-#     template_name = "email_otp_template.html"
-#     send_email(context=context, to_email=to_email,template_name=template_name,subject=subject)
-    
   
 def response(status, data, status_code):
     return Response({
@@ -72,3 +64,7 @@ def send_otp_email(email, otp):
     subject = 'Password Reset OTP'
     message = f'Your OTP for password reset is: {otp}'
     send_mail(subject, message, settings.EMAIL_HOST_USER, [email])
+
+def create_log(admin_user, user_name, action):
+    activity_log = UserActivityLog.objects.create(user=admin_user, action_type= action, object = "User", log=f'{action.title()} user {user_name}')
+    activity_log.save()

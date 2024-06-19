@@ -181,10 +181,18 @@ class ReportPermission(models.Model):
             return str(self.reports_permission)
         
 class UserActivityLog(models.Model):
+    ACTION_CHOICES = [
+        ('created', 'Created'),
+        ('updatedd', 'Update'),
+        ('deleted', 'Deleted'),
+        ('viewed', 'Viewed'),
+        # Add more action types as needed
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
-    report = models.CharField(max_length=255)
+    action_type = models.CharField(max_length=10, choices=ACTION_CHOICES, default='viewed')
+    object = models.CharField(max_length=255)
     log = models.TextField()
 
     def __str__(self):
-        return self.report
+        return self.log

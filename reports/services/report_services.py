@@ -7,7 +7,7 @@ from users.models import UserActivityLog
 from rest_framework.permissions import BasePermission
 from rest_framework.exceptions import PermissionDenied
 from .report_queries import * 
-from .report_user_rules import *
+from users.services.utils import *
 
 load_dotenv()
 

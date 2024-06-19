@@ -1,4 +1,4 @@
-from .report_user_rules import *
+from users.services.utils import *
 
 
 def sales_summary_query(start_date, end_date, pre_date, team_names= None):

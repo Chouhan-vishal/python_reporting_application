@@ -87,7 +87,7 @@ class UserActivityLogSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     class Meta:
         model = UserActivityLog
-        fields = ['id', 'created_at', 'report', 'log', 'user']
+        fields = ['id', 'created_at', 'action_type', 'object', 'log', 'user']
         
 
     def to_representation(self, instance):

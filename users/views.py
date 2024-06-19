@@ -15,7 +15,8 @@ from .services.utils import generate_otp, send_otp_email, create_log, is_admin, 
 from datetime import datetime, timedelta
 from django.utils.timezone import now as aware_utcnow
 from django.db.models import Q, Count
-from reports.services import report_services, report_queries, report_user_rules
+from reports.services import report_services, report_queries
+from .services.utils import *
 from rest_framework.views import APIView
 from rest_framework import status
 import pyotp
@@ -673,7 +674,7 @@ class TeamNames(APIView):
             user = request.user
             conn = report_services.create_sql_server_connection()
             cursor = conn.cursor()
-            if report_user_rules.is_admin(user):
+            if is_admin(user):
                 manager_name = request.data.get("manager_name", None)
             else:
                 manager_name = user.full_name.lower()

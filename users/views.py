@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from dotenv import load_dotenv
 from reporting_application.constants import *
-from .services.utils import generate_otp, send_otp_email, create_log
+from .services.utils import generate_otp, send_otp_email, create_log, is_admin, is_salesman, is_manager
 from datetime import datetime, timedelta
 from django.utils.timezone import now as aware_utcnow
 from django.db.models import Q, Count
@@ -333,8 +333,9 @@ class Profile(APIView):
             serializer = UserSerializer(user)
             data = serializer.data
             if not user.is_admin:
-                accessible_reports_list = [{"path":f"/{k}".replace("_", "-"), "title":" ".join([str(k).capitalize() for k in str(k).split("_")])} for k,v in user.permitted_reports.reports_permission.items() if v==True]
-                accessible_reports_list.append({'title':"KPI Dashboard", "path":'/kpi-dashboard'})
+                accessible_reports_list = [{"path":f"/{k}".replace("_", "-"), "title":" ".join([str(k).capitalize() for k in str(k).split("_")])} for k,v in user.permitted_reports.reports_permission.items() if v==True] 
+                if is_salesman(user):
+                    accessible_reports_list.insert(0, {'title':"KPI Dashboard", "path":'/kpi-dashboard'})
                 data['accessible_reports'] = accessible_reports_list
             logger.info(f'User with "email": {user.email} retrieved successfully')
             return response(SUCCESS, data, status.HTTP_200_OK)

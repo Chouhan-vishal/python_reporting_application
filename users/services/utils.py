@@ -68,3 +68,12 @@ def send_otp_email(email, otp):
 def create_log(admin_user, user_name, action):
     activity_log = UserActivityLog.objects.create(user=admin_user, action_type= action, object = "User", log=f'{action.title()} user {user_name}')
     activity_log.save()
+
+def is_manager(user):
+    return user.hierarchy.name == 'manager'
+
+def is_salesman(user):
+    return user.hierarchy.name == 'salesman'
+
+def is_admin(user):
+    return user.hierarchy.name == 'admin'

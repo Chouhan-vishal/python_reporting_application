@@ -92,6 +92,7 @@ WSGI_APPLICATION = 'reporting_application.wsgi.application'
 database_name = os.environ["DATABASE_NAME"]
 database_user = os.environ["DATABASE_USER"]
 database_password = os.environ["DATABASE_PASSWORD"]
+database_host = os.environ["DATABASE_HOST"]
 
 DATABASES = {
     'default': {
@@ -99,7 +100,7 @@ DATABASES = {
         'NAME': database_name,
         'USER': database_user,
         'PASSWORD': database_password,
-        'HOST': 'localhost',
+        'HOST': database_host,
         'PORT': '5432'
     }
 }

@@ -1195,7 +1195,8 @@ def review_salesman_wise_query1(team_names, salesman = None):
         INNER JOIN [dbo].[tbl_TargetCustomers] TC WITH (NOLOCK)
             ON SV.[Customer ID] = TC.[Customer ID]
         WHERE SV.[Item Details] <> 'Welding Electrodes'
-        AND SV.[Voucher Date] BETWEEN '2024-6-1' AND '2024-6-6'
+        AND YEAR(SV.[Voucher Date]) = YEAR(GETDATE()) 
+            AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE())
         GROUP BY 
             TC.[Team Name], TC.[Sales Person]
     ),
@@ -1214,21 +1215,21 @@ def review_salesman_wise_query1(team_names, salesman = None):
             TC.[Team Name], TC.[Sales Person]
     ),
     Outstanding AS (
-        SELECT
+        SELECT  
             ST.[Team Name],
-            ST.[Sales Person],
+            OS.[Sales Person -2] AS [Sales Person],
             SUM(CASE WHEN OS.Ageing > 25 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 25 Days Outstanding]
         FROM [dbo].[tbl_OutStandings] OS WITH (NOLOCK)
         INNER JOIN [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
             ON LTRIM(RTRIM(OS.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
-        WHERE
+        WHERE 
             CAST(OS.[Created Date] AS DATE) = (
-                SELECT MAX(CAST([Created Date] AS DATE))
+                SELECT MAX(CAST([Created Date] AS DATE)) 
                 FROM [dbo].[tbl_OutStandings] OS2
-                WHERE OS2.[Sales Person -2] = OS.[Sales Person -2]
             )
-        GROUP BY
-            ST.[Team Name], ST.[Sales Person]
+        GROUP BY 
+            ST.[Team Name],
+            OS.[Sales Person -2]
     )
     SELECT DISTINCT 
         ST.[Team Name],

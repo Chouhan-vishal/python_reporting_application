@@ -133,7 +133,7 @@ def count_months(start_date, end_date):
 
 
 def create_log(user, report_name):
-    activity_log = UserActivityLog.objects.create(user=user, report=report_name, log=f'{report_name} is viewed')
+    activity_log = UserActivityLog.objects.create(user=user, action_type= "viewed", object = "Report", log=f'Viewed {report_name}')
     activity_log.save()
 
 class HasReportPermission(BasePermission):

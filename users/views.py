@@ -774,7 +774,6 @@ class AdminDashboard(APIView):
         Response: Returns active users count, reports viewed data count and teams count .
     """
     def get(self, request):
-        import pdb;pdb.set_trace()
         try:
             users_count = User.objects.filter(is_active= True).count()
             conn = report_services.create_sql_server_connection()

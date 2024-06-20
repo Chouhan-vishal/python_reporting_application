@@ -33,6 +33,8 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, inline_serializer, OpenApiTypes, extend_schema_serializer
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular import openapi
+from django.db.models import Count, Value, TextField
+from django.db.models.functions import Replace
 
 import logging
 
@@ -755,12 +757,12 @@ class SalesmanList(APIView):
             results = cursor.fetchall()
             
             # Initialize a nested dictionary to hold the grouped data
-            manager_names = [row[0] for row in results]
+            salesman_names = [row[0] for row in results]
 
-            return response(SUCCESS, manager_names, HTTP_200_OK)
+            return response(SUCCESS, salesman_names, HTTP_200_OK)
         except Exception as e:
-            logger.error(f'Error during manager names retrieval: {str(e)}')
-            return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)
+            logger.error(f'Error during salesman names retrieval: {str(e)}')
+            return response(SUCCESS, {'error': 'Error during salesman names retrieval'},HTTP_400_BAD_REQUEST)
             
 class AdminDashboard(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -772,6 +774,7 @@ class AdminDashboard(APIView):
         Response: Returns active users count, reports viewed data count and teams count .
     """
     def get(self, request):
+        import pdb;pdb.set_trace()
         try:
             users_count = User.objects.filter(is_active= True).count()
             conn = report_services.create_sql_server_connection()
@@ -781,13 +784,13 @@ class AdminDashboard(APIView):
             teams = cursor.fetchall()
             teams_count = len(teams)
 
-            report_data = UserActivityLog.objects.values('report').annotate(count=Count('report')).order_by('-count')
+            report_data = UserActivityLog.objects.filter( object='Report', action_type='viewed' ).annotate( report=Replace('log', Value('Viewed '), Value(''), output_field=TextField()) ).values( 'report' ).annotate( count=Count('report') ).order_by('-count')
             total_count = UserActivityLog.objects.count()
             reports_count  = len(report_data)
             final_data  = {"active_users": users_count, "total_teams": teams_count, "total_reports": reports_count,"reports_viewed": total_count, "reports_data": report_data}
 
             return response(SUCCESS, {"reports count": final_data}, HTTP_200_OK)
         except Exception as e:
-            logger.error(f'Error during manager names retrieval: {str(e)}')
-            return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)
+            logger.error(f'Error during render manager dashboard: {str(e)}')
+            return response(SUCCESS, {'error': 'Error during render manager dashboard'},HTTP_400_BAD_REQUEST)
             

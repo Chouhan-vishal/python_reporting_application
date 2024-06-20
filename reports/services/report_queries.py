@@ -565,9 +565,29 @@ def team_and_product_wise_query(start_date, end_date, pre_date):
 
 def salesman_and_product_wise_query(user, team_names, month, year, salesman=None):
     if is_salesman(user):
+        achv_qty_clause=''
+        target_filter_clause=''
+        voucher_filter_clause=''
         full_name = user.full_name
+        # Calculation for Achv Qty specific to salesmen
+        achv_qty_clause = """
+            SUM(CASE
+                WHEN SV.[Item Details] = 'Welding Electrodes' THEN [Qty(Box)]
+                ELSE [Qty(MTs)]
+            END) AS [Achv Qty]
+        """
+        target_filter_clause = ""
+        voucher_filter_clause = ""
         sub_query = f"AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
     elif is_manager(user):
+        achv_qty_clause = """
+            SUM(CASE
+                WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)]
+                ELSE 0
+            END) AS [Achv Qty]
+        """
+        target_filter_clause = "WHERE [Item Category] <> 'Welding Electrodes'"
+        voucher_filter_clause = " AND SV.[Item Details] <> 'Welding Electrodes' "
         sub_query = f"AND ST.[Team Name] in ({team_names})"
         if salesman:
             sub_query += f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
@@ -576,36 +596,36 @@ def salesman_and_product_wise_query(user, team_names, month, year, salesman=None
 
     sql_query = f"""
     WITH Sales AS (
-        SELECT          
+        SELECT
             ST.[Sales Person],
             IL.[Item Category] AS [Product cluster],
             ISNULL(TC.[Target Qty], 0) AS [Target Qty],
-            SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END) AS [Achv Qty]
-        FROM [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)  
-        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK) 
-            ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))  
+            {achv_qty_clause}
+        FROM [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)
+        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK)
+            ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
         INNER JOIN (
             SELECT DISTINCT
                 [Item Details],
-                [Item Category] 
+                [Item Category]
             FROM dbo.tbl_ItemsList IL WITH(NOLOCK)
-        ) IL   
-            ON IL.[Item Details] = SV.[Item Details]  
+        ) IL
+            ON IL.[Item Details] = SV.[Item Details]
         LEFT JOIN (
-            SELECT     
+            SELECT
                 [Sales Person],
                 [Item Category] AS [Product cluster],
                 ROUND(SUM(CAST([Target Qty] AS DECIMAL(10,2))),2) AS [Target Qty]
-            FROM [dbo].[tbl_TargetCustomers] WITH(NOLOCK)   
-            WHERE [Item Category] <> 'Welding Electrodes'
-            GROUP BY 
+            FROM [dbo].[tbl_TargetCustomers] WITH(NOLOCK)
+            {target_filter_clause}
+            GROUP BY
                 [Sales Person],
                 [Item Category]
-        ) TC 
+        ) TC
             ON TC.[Sales Person] = ST.[Sales Person] AND TC.[Product cluster] = IL.[Item Category]
-        WHERE YEAR(SV.[Voucher Date]) = {year} AND MONTH(SV.[Voucher Date]) = {month} AND SV.[Item Details] <> 'Welding Electrodes' 
+        WHERE YEAR(SV.[Voucher Date]) = {year} AND MONTH(SV.[Voucher Date]) = {month}  {voucher_filter_clause}
         {sub_query}
-        GROUP BY 
+        GROUP BY
             ST.[Sales Person],
             IL.[Item Category],
             TC.[Target Qty]

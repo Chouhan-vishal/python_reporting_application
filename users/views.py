@@ -511,8 +511,12 @@ class ResetPassword(APIView):
                 raise Exception(f"User with email {email} does not exist")
             new_password = request.data.get('password')
             confirm_password = request.data.get('confirm_password')
+            try:
+                admin_user = is_admin(request.user)
+            except:
+                admin_user = False
             token = request.data.get('token')
-            if not PasswordResetTokenGenerator().check_token(user, token):
+            if not admin_user and not PasswordResetTokenGenerator().check_token(user, token):
                 return response(FAILED, {ERROR: 'Invalid or expired token'}, HTTP_400_BAD_REQUEST)
 
             if not new_password or not confirm_password:

@@ -612,7 +612,7 @@ class ReportLogs(APIView):
             Response: Returns All the User Activity Logs from UserActivityLog model.
         """
         try:
-            user_activity_logs = UserActivityLog.objects.all()
+            user_activity_logs = UserActivityLog.objects.all().order_by('-created_at')
             serializer = UserActivityLogSerializer(user_activity_logs, many=True)
             return response(SUCCESS, serializer.data, HTTP_200_OK)
         except Exception as e:

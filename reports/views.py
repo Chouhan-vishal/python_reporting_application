@@ -48,7 +48,7 @@ class SalesSummaryReport(APIView):
                 'sales_person': sales_person,
                 'target_qty': target_qty * month_count,
                 'sales_quantity': sales_quantity,
-                'achieved%': achieved_pct,
+                'achieved%':(sales_quantity / (target_qty * month_count) * 100) if target_qty != 0 else 0,
                 'PreDaySalesValue': pre_day_sales_value,
             }
             team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty'] * int(month_count)
@@ -704,7 +704,7 @@ class WeldingElectrodeProductSalesReports(APIView):
                 'sales_person': sales_person,
                 'target_qty': target_qty * month_count,
                 'sales_quantity': sales_quantity,
-                'achieved%': achieved_percentage
+                'achieved%': (sales_quantity / (target_qty * month_count) * 100) if target_qty != 0 else 0,
             }
 
             team_sales_summary[team_name]['team_target_qty'] += target_qty * month_count
@@ -786,7 +786,7 @@ class DurastrongTmtProductSalesReport(APIView):
                 'sales_person': sales_person,
                 'target_qty': target_qty * month_count,
                 'sales_quantity': sales_quantity,
-                'achieved%': achieved_percentage
+                'achieved%': (sales_quantity / (target_qty * month_count) * 100) if target_qty != 0 else 0
             }
 
             team_sales_summary[team_name]['team_target_qty'] += target_qty * month_count

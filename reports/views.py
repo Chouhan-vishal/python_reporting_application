@@ -648,9 +648,10 @@ class TargetAndAchievedReport(APIView):
     @drf_schema(serializer_name="DateSerializer")
     def post(self,request):
         try:
+            team_name = request.data.get("team_name")
             user =  request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                team_names = report_services.get_teamnames_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -860,8 +861,9 @@ class SalesRegisterReport(APIView):
     def post(self,request):
         try:
             user = request.user
+            team_name = request.data.get("team_name")
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                team_names = report_services.get_teamnames_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             start_date = request.data.get("start_date", None)
@@ -993,7 +995,7 @@ class ProductWiseMonthOnMonthReport(APIView):
             })
         return final_result
     
-    def fetch_product_wise_month_report(self,team_names,month_count, salesman):
+    def fetch_product_wise_month_report(self,team_names,month_count, salesman, user):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         if not month_count:
@@ -1003,7 +1005,7 @@ class ProductWiseMonthOnMonthReport(APIView):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.product_wise_month_on_month_query(item['start_date'], item['end_date'], team_names, salesman)
+            sql_query = report_queries.product_wise_month_on_month_query(item['start_date'], item['end_date'], user, team_names, salesman)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
@@ -1029,7 +1031,7 @@ class ProductWiseMonthOnMonthReport(APIView):
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             month_count = request.data.get("month_count", None)
-            intermediate_result = self.fetch_product_wise_month_report(team_names,month_count, salesman)
+            intermediate_result = self.fetch_product_wise_month_report(team_names,month_count, salesman, user)
 
             final_result = self.process_product_wise_month_report(intermediate_result)
             

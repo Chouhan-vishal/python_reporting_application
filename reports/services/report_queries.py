@@ -989,7 +989,16 @@ def all_customers_sales_query(start_date, end_date, user, team_names, salesman =
     return sql_query
 
 
-def product_wise_month_on_month_query(start_date, end_date, team_names, salesman=None):
+def product_wise_month_on_month_query(start_date, end_date, user, team_names, salesman=None):
+    if is_salesman(user):
+        full_name = user.full_name
+        sub_query = f"AND ST.[Sales Person] = '{full_name}'"
+    elif is_manager(user):
+        sub_query = f"AND ST.[Team Name] in ({team_names})"
+        if salesman:
+            sub_query += f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
+    else:
+        sub_query = ''
     sql_query = f"""
     WITH Sales AS (
     SELECT          
@@ -1000,14 +1009,17 @@ def product_wise_month_on_month_query(start_date, end_date, team_names, salesman
             [Item Category] 
             FROM dbo.tbl_ItemsList IL  WITH(NOLOCK)) IL   
     INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK) 
-        ON IL.[Item Details] = SV.[Item Details]  
+        ON IL.[Item Details] = SV.[Item Details]
+    INNER JOIN [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)
+        ON SV.[Sales Person -2] = ST.[Sales Person]  
     WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'  
-        AND SV.[Item Details] <> 'Welding Electrodes' 
+        AND SV.[Item Details] <> 'Welding Electrodes'
+        {sub_query}
     GROUP BY IL.[Item Category]
     )
     SELECT 
-    S.[Item Category] AS [item_category],
-    S.[Achv Qty] AS [achvd_qty]
+        S.[Item Category] AS [item_category],
+        S.[Achv Qty] AS [achvd_qty]
     FROM Sales S
     ORDER BY S.[Item Category];
     """

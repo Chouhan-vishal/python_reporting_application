@@ -336,7 +336,6 @@ class Profile(APIView):
             user = request.user
             serializer = UserSerializer(user)
             data = serializer.data
-            data["hierarchy"]["name"] = data["hierarchy"]["name"].title()
             if not user.is_admin:
                 accessible_reports_list = [{"path":f"/{k}".replace("_", "-"), "title":" ".join([str(k).capitalize() for k in str(k).split("_")])} for k,v in user.permitted_reports.reports_permission.items() if v==True] 
                 if is_salesman(user):

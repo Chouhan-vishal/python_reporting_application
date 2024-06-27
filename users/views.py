@@ -779,7 +779,7 @@ class AdminDashboard(APIView):
     """
     def get(self, request):
         try:
-            users_count = User.objects.filter(is_active= True).count()
+            users_count = User.objects.filter(is_active= True, is_admin= False).count()
             conn = report_services.create_sql_server_connection()
             cursor = conn.cursor()
             sql_query = report_queries.get_team_names()

@@ -1,11 +1,59 @@
 from django.db import models
-from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
-from django.utils import timezone
 from django.conf import settings
-
+from django.utils import timezone
+from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 
 class UserManager(BaseUserManager):
-    def create_user(self, emp_code, email, phone_number, is_active=True, team_name=None, manager_name = None,  hierarchy = None, full_name=None, password=None, is_admin=False, admin_user= None):
+    @staticmethod
+    def manager_permission_set():
+        return {
+            "sales_summary": False,
+            "product_wise_sales_summary": False,
+            "sales_collection_outstanding": False,
+            "weekly_summary": False,
+            "collection": False,
+            "customer_wise_outstanding": False,
+            "cr_utilization": False,
+            "salesman_and_product_wise": False,
+            "target_and_achieved": False,
+            "target_customer_sales": False,
+            "all_customers_sales": False,
+            "welding_electrode": False,
+            "durastrong_tmt_product_sales": False,
+            "review_product_wise": False,
+            "sales_register": False,
+            "product_wise_month_sales": False,
+            "block_customers_list": False,
+            "review_salesman_wise": False
+        }
+    @staticmethod
+    def salesman_permission_set():
+        return { 
+            "sales_collection_outstanding": False,
+            "weekly_summary": False,
+            "collection": False,
+            "customer_wise_outstanding": False,
+            "cr_utilization" : False,
+            "salesman_and_product_wise": False,
+            "target_and_achieved": False,
+            "target_customer_sales": False,
+            "all_customers_sales": False,
+            "incentive_report": False
+            }
+    @classmethod
+    def get_allowed_permissions(cls, user_role):
+        if user_role == 'manager':
+            manager_permissions = cls.manager_permission_set()
+            allowed_permissions = manager_permissions
+        elif user_role == 'salesman':
+            salesman_permissions = cls.salesman_permission_set()
+            allowed_permissions = salesman_permissions
+        else:
+            allowed_permissions = {}
+
+        return allowed_permissions
+
+    def create_user(self, email, phone_number, emp_code=None, is_active=True, team_name=None, manager_name = None,  hierarchy = None, full_name=None, password=None, is_admin=False, admin_user= None):
         """
         Creates and saves a User with the given email, emp_code, phone_number,
         full_name and password.
@@ -34,44 +82,11 @@ class UserManager(BaseUserManager):
 
         user.set_password(password)
         user.save(using=self._db)
-        def manager_permission_set():
-            return {
-                "sales_summary": False,
-                "product_wise_sales_summary": False,
-                "sales_collection_outstanding": False,
-                "weekly_summary": False,
-                "collection": False,
-                "customer_wise_outstanding": False,
-                "cr_utilization": False,
-                "salesman_and_product_wise": False,
-                "target_and_achieved": False,
-                "target_customer_sales": False,
-                "all_customers_sales": False,
-                "welding_electrode": False,
-                "durastrong_tmt_product_sales": False,
-                "review_product_wise": False,
-                "sales_register": False,
-                "product_wise_month_sales": False,
-                "block_customers_list": False,
-                "review_salesman_wise": False
-            }
-        def salesman_permission_set():
-            return { 
-                "sales_collection_outstanding": False,
-                "weekly_summary": False,
-                "collection": False,
-                "customer_wise_outstanding": False,
-                "cr_utilization" : False,
-                "salesman_and_product_wise": False,
-                "target_and_achieved": False,
-                "target_customer_sales": False,
-                "all_customers_sales": False,
-                "incentive_report": False
-                }
+        
         if hierarchy.name == 'manager':
-            report_permission = ReportPermission.objects.create(reports_permission=manager_permission_set())
+            report_permission = ReportPermission.objects.create(reports_permission=UserManager.manager_permission_set())
         elif hierarchy.name == 'salesman':
-            report_permission = ReportPermission.objects.create(reports_permission=salesman_permission_set())
+            report_permission = ReportPermission.objects.create(reports_permission=UserManager.salesman_permission_set())
         else:
             report_permission = ReportPermission.objects.create()
 
@@ -97,7 +112,6 @@ class Hierarchy(models.Model):
     name = models.CharField(max_length=255)
     def __str__(self):
         return self.name
-
 
 class User(AbstractBaseUser):
     hierarchy = models.ForeignKey(
@@ -157,7 +171,11 @@ class User(AbstractBaseUser):
         "Is the user a member of staff?"
         # Simplest possible answer: All admins are staff
         return self.is_admin
-
+    
+    @staticmethod
+    def generate_emp_code(id):
+        new_emp_code = str(id).zfill(3)
+        return f'SLS{new_emp_code}'
 
 class OTP(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -184,7 +202,7 @@ class ReportPermission(models.Model):
 class UserActivityLog(models.Model):
     ACTION_CHOICES = [
         ('created', 'Created'),
-        ('updatedd', 'Update'),
+        ('updated', 'Updated'),
         ('deleted', 'Deleted'),
         ('viewed', 'Viewed'),
         # Add more action types as needed
@@ -197,3 +215,11 @@ class UserActivityLog(models.Model):
 
     def __str__(self):
         return self.log
+
+class Reports(models.Model):
+    reports_name = models.CharField(max_length=255, null=False)
+    index = models.IntegerField()
+    keys = models.CharField(max_length=255, null=False)
+    
+    def __str__(self):
+        return self.reports_name

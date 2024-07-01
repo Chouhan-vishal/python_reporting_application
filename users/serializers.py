@@ -1,7 +1,7 @@
-from rest_framework import serializers
-from .models import User, Hierarchy, TwoFactorAuthentication, ReportPermission, UserActivityLog
-from django.db import transaction
 from .services import utils
+from django.db import transaction
+from rest_framework import serializers
+from .models import User, Hierarchy, TwoFactorAuthentication, ReportPermission, UserActivityLog, UserManager
 
 class HierarchySerializer(serializers.ModelSerializer):
     class Meta:
@@ -14,7 +14,6 @@ class ReportPermissionSerializer(serializers.ModelSerializer):
         model = ReportPermission
         fields = ['id', 'reports_permission']
 
-
 class UserSerializer(serializers.ModelSerializer):
     hierarchy = HierarchySerializer(read_only=True)
     role = serializers.CharField(write_only=True)
@@ -22,10 +21,11 @@ class UserSerializer(serializers.ModelSerializer):
     created_at = serializers.DateTimeField(read_only=True)
     last_login = serializers.DateTimeField(read_only=True)
     permitted_reports = ReportPermissionSerializer(required=False)
+    emp_code = serializers.CharField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'emp_code', 'full_name', 'team_name', 'manager_name', 'password', 'is_active', 'is_admin', 'created_at', 'last_login',
+        fields = ['id', "emp_code", 'full_name', 'team_name', 'manager_name', 'password', 'is_active', 'is_admin', 'created_at', 'last_login',
                   'email', 'hierarchy', "role", 'phone_number', 'permitted_reports']
         read_only_fields = ['created_at', 'last_login']
 
@@ -50,8 +50,9 @@ class UserSerializer(serializers.ModelSerializer):
                 permitted_report_dict_data = {key: value for key, value in permissions_dict.items() if key in permitted_reports_obj.reports_permission.keys()}
                 permitted_reports_obj.reports_permission.update(permitted_report_dict_data)
                 permitted_reports_obj.save()
-                user.save()
-
+            emp_code = user.generate_emp_code(user.id)
+            user.emp_code = emp_code
+            user.save()
             return user
 
     def update(self, instance, validated_data):
@@ -66,7 +67,6 @@ class UserSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(f'hierarchy with name {hierarchy_name} does not exist ')
                 else:
                     instance.hierarchy = hierarchy_obj
-            instance.emp_code = validated_data.get('emp_code', instance.emp_code)
             instance.email = validated_data.get('email', instance.email)
             instance.full_name = validated_data.get('full_name', instance.full_name)
             instance.team_name = validated_data.get('team_name', instance.team_name)
@@ -77,14 +77,15 @@ class UserSerializer(serializers.ModelSerializer):
             reports_permission = validated_data.pop('permitted_reports', None)
             if reports_permission:
                 reports_permission_data = reports_permission.get('reports_permission', None)
-                permitted_reports_obj = instance.permitted_reports
-                permitted_report_dict_data = {key: value for key, value in reports_permission_data.items() if key in permitted_reports_obj.reports_permission.keys()}
-                permitted_reports_obj.reports_permission.update(permitted_report_dict_data)
-                permitted_reports_obj.save()
+                if reports_permission_data is not None:
+                    permitted_reports_obj = instance.permitted_reports
+                    user_role = instance.hierarchy.name
+                    allowed_permissions = UserManager.get_allowed_permissions(user_role)
+                    valid_permissions = {key: value for key, value in reports_permission_data.items() if key in allowed_permissions}
+                    permitted_reports_obj.reports_permission.update(valid_permissions)
+                    permitted_reports_obj.save()
             instance.save()
             return instance
-
-
 
 class UserActivityLogSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -143,7 +144,6 @@ class TwoFactorAuthenticationSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid OTP format. OTP must be a 6-digit number.")
 
         return data
-
 
 class UserSearchSerializer(serializers.Serializer):
     query = serializers.CharField(max_length=255)

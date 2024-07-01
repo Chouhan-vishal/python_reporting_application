@@ -1,24 +1,23 @@
-from django.shortcuts import render
-from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from reports.services import report_services, report_queries, dashboard_queries
-from reports.services.report_services import HasReportPermission
-from django.db import connection, DatabaseError
-from rest_framework.views import APIView
-from users.services.utils import drf_schema, response
-from collections import defaultdict
-from reporting_application.constants import *
 import logging
-from users.models import UserActivityLog , User
-from users.serializers import UserActivityLogSerializer
+from users.models import User
+from collections import defaultdict
 from rest_framework import serializers
-from datetime import datetime, timedelta
-logger = logging.getLogger('reports')
 from reports.models import ProductGroup
+from datetime import datetime, timedelta
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from reporting_application.constants import *
+from users.services.utils import extend_schema
+from users.services.utils import drf_schema, response
+from rest_framework.permissions import IsAuthenticated
+from reports.services.report_services import HasReportPermission
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from reports.services import report_services, report_queries, dashboard_queries
 
-class SalesSummaryReport(APIView):
+logger = logging.getLogger('reports')
+
+class SalesSummary(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = 'Sales Summary Report'
     def fetch_sales_summary(self, start_date, end_date, pre_date,team_names):
@@ -102,8 +101,7 @@ class SalesSummaryReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-class SalesCollectionOutstandingReportView(APIView):
+class SalesCollectionOutstanding(APIView):
     REPORT_NAME = 'Sales Collection Outstanding Report'
     permission_classes = [IsAuthenticated, HasReportPermission]
     def process_sales_collections_outstanding_results(self,results):
@@ -244,7 +242,6 @@ class ProductWiseSalesSummary(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
 class WeeklySummary(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Weekly Summary Report"
@@ -326,7 +323,7 @@ class WeeklySummary(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class CollectionReport(APIView):
+class Collection(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Collection Report"
     def fetch_collection_report(self,user,team_names,start_date,end_date):
@@ -431,9 +428,9 @@ class CustomerWiseOutstanding(APIView):
 
     @drf_schema(serializer_name="CustomerWiseOutstandingSerializer",
             serializer_fields={
-                "outstanding_value": serializers.IntegerField(),
                 "team_name": serializers.CharField(),
-                "salesman": serializers.CharField()
+                "salesman": serializers.CharField(),
+                "outstanding_value": serializers.IntegerField()
             })
     def post(self,request):
         try:
@@ -459,7 +456,7 @@ class CustomerWiseOutstanding(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class CrUtilizationReport(APIView):
+class CrUtilization(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "CR Utilization Report"
     @drf_schema(serializer_name="CRUtilizationReportSerializer",
@@ -499,8 +496,7 @@ class CrUtilizationReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-class SalesmanAndProductWiseReport(APIView):
+class SalesmanAndProductWise(APIView):
     REPORT_NAME = "Salesman and Product Wise Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
     def fetch_salesman_and_product_wise_report(self,user, team_names, salesman, month, year):
@@ -552,7 +548,9 @@ class SalesmanAndProductWiseReport(APIView):
     @drf_schema(serializer_name="SalesmanProductWiseReportSerializer",
         serializer_fields={
             "team_name": serializers.CharField(),
-            "salesman": serializers.CharField()
+            "salesman": serializers.CharField(),
+            "year":serializers.CharField(),
+            "month":serializers.CharField()
         })
     def post(self,request):
         try:
@@ -577,7 +575,7 @@ class SalesmanAndProductWiseReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class TargetAndAchievedReport(APIView):
+class TargetAndAchieved(APIView):
     REPORT_NAME = 'Target and Achieved Report'
     permission_classes = [IsAuthenticated, HasReportPermission]
 
@@ -647,7 +645,12 @@ class TargetAndAchievedReport(APIView):
             
         return team_sales_summary_list
 
-    @drf_schema(serializer_name="DateSerializer")
+    @drf_schema(serializer_name="TargetAndAchievedReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "month": serializers.CharField(),
+                    "year": serializers.CharField()
+                })
     def post(self,request):
         try:
             team_name = request.data.get("team_name")
@@ -674,7 +677,7 @@ class TargetAndAchievedReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class WeldingElectrodeProductSalesReports(APIView):
+class WeldingElectrodeProductSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Welding Electrode Product Sales Report"
 
@@ -757,7 +760,7 @@ class WeldingElectrodeProductSalesReports(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class DurastrongTmtProductSalesReport(APIView):
+class DurastrongTmtProductSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Durastrong TMT Product Sales Report"
     def fetch_durastrong_tmt_product_sales(self,start_date, end_date, team_names):
@@ -840,10 +843,8 @@ class DurastrongTmtProductSalesReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-
 # Response is very huge not able to compare
-class SalesRegisterReport(APIView):
+class SalesRegister(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Sales Register Report"
 
@@ -859,7 +860,12 @@ class SalesRegisterReport(APIView):
         conn.close()
         return data
     
-    @drf_schema(serializer_name="DateSerializer")
+    @drf_schema(serializer_name="SalesRegisterReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "start_date": serializers.DateField(input_formats=['%Y-%m-%d']),
+                    "end_date": serializers.DateField(input_formats=['%Y-%m-%d'])
+                })
     def post(self,request):
         try:
             user = request.user
@@ -883,9 +889,8 @@ class SalesRegisterReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
 # Response is very huge not able to compare
-class BlockCustomersListReport(APIView):
+class BlockCustomersList(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Block Customers List Report"
     def fetch_and_process_block_customers_list_report(self, team_names):
@@ -899,6 +904,7 @@ class BlockCustomersListReport(APIView):
         cursor.close()
         conn.close()
         return data
+    @extend_schema()
     def post(self,request):
         try:
             user = request.user
@@ -914,10 +920,7 @@ class BlockCustomersListReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-
-
-class AllCustomersMomReport(APIView):
+class AllCustomersMom(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "All Customers Month on Month Report"
     def fetch_all_customers_mom_report(self,date_ranges,user, team_names, salesman):
@@ -957,7 +960,12 @@ class AllCustomersMomReport(APIView):
                     "achvd_qty": achv_qty
                 })
         return result
-    
+    @drf_schema(serializer_name="AllCustomerMomReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })
     def post(self,request):
         try:
             team_name = request.data.get("team_name")
@@ -983,7 +991,7 @@ class AllCustomersMomReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class ProductWiseMonthOnMonthReport(APIView):
+class ProductWiseMonthOnMonth(APIView):
     REPORT_NAME = "Product Wise Month On Month Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
 
@@ -1022,7 +1030,12 @@ class ProductWiseMonthOnMonthReport(APIView):
                 
                 intermediate_result[item_category][month] = achvd_qty
         return intermediate_result
-    
+    @drf_schema(serializer_name="ProductWiseMonthOnMonthReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })
     def post(self,request):
         try:
             user = request.user
@@ -1043,9 +1056,7 @@ class ProductWiseMonthOnMonthReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-
-class ReviewProductWiseReport(APIView):
+class ReviewProductWise(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Review Product Wise Report"
     def fetch_review_product_wise_report(self,month_count, team_names, salesman):
@@ -1056,34 +1067,38 @@ class ReviewProductWiseReport(APIView):
         results = cursor.fetchall()
 
         return results
-
-    def process_review_product_wise_report(self,results):
+    def process_review_product_wise_report(self,results, month_count):
         data = defaultdict(lambda: defaultdict(lambda: {"Target Qty": 0, "Months": defaultdict(float)}))
         # Process the results
+        last_n_months = report_services.get_last_n_months_names(month_count)
         for row in results:
             team_name, product_cluster, target_qty, achv_qty, year, month = row
             if achv_qty is None:
                 achv_qty = 0.0
-            if month is None:
-                month = "No Month"
+            # if month is None:
+            #     month = "No Month"
             data[team_name][product_cluster]["Target Qty"] = float(target_qty)
             data[team_name][product_cluster]["Months"][month] = float(achv_qty)
-
         # Convert the data to the desired format
         result = []
         for team, products in data.items():
             team_products = {}
             for product, product_data in products.items():
                 product_dict = {
-                    "Target Qty": product_data["Target Qty"],
-                    "Months": dict(product_data["Months"])
+                "Target Qty": product_data["Target Qty"],
+                "Months":  {month: product_data["Months"].get(month, 0.0) for month in last_n_months}
                 }
+                product_dict["Months"].pop("", None)
                 team_products[product] = product_dict
             result.append({team: team_products})
         return result
-
+    @drf_schema(serializer_name="ReviewProductWiseReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })
     def post(self,request):
-        
         try:
             team_name = request.data.get("team_name")
             salesman = request.data.get("salesman")
@@ -1099,7 +1114,7 @@ class ReviewProductWiseReport(APIView):
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
 
             data = self.fetch_review_product_wise_report(month_count, team_names, salesman)
-            result = self.process_review_product_wise_report(data)
+            result = self.process_review_product_wise_report(data, month_count)
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, result, HTTP_200_OK)
@@ -1108,9 +1123,7 @@ class ReviewProductWiseReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-
-class TargetCustomerSalesReport(APIView):
+class TargetCustomerSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Target Customer Sales Report"
 
@@ -1149,9 +1162,12 @@ class TargetCustomerSalesReport(APIView):
                     "achvd_qty": achv_qty
                 })
         return aggregated_result
-    
-
-
+    @drf_schema(serializer_name="TargetCustomerSalesReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })    
     def post(self,request):
         try:
             team_name = request.data.get("team_name")
@@ -1174,7 +1190,6 @@ class TargetCustomerSalesReport(APIView):
         except Exception as e:
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
 
 class ReviewSalesmanWiseData(APIView):
     REPORT_NAME = "Review SalesMan Wise Report"
@@ -1202,7 +1217,6 @@ class ReviewSalesmanWiseData(APIView):
                 query2_data[month].extend(data2)
 
         return query1_data,query2_data
-    
 
     def process_review_salesman_wise_data(self,query1_data, query2_data):
         # Combine the data
@@ -1246,7 +1260,12 @@ class ReviewSalesmanWiseData(APIView):
             team_data["team_name"] = team_name
             combined_data.append(team_data)
         return combined_data
-
+    @drf_schema(serializer_name="ReviewSalesmanWiseDataSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })
     def post(self,request):
         try:
             user = request.user
@@ -1272,12 +1291,10 @@ class ReviewSalesmanWiseData(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-
-
 class SalesmanKpiDashboard(APIView):
     REPORT_NAME = ""
     permission_classes = [IsAuthenticated]
+    @extend_schema()
     def post(self,request):
         user = request.user
         # Fetch the queries for main data and customer data
@@ -1318,6 +1335,7 @@ class SalesmanKpiDashboard(APIView):
 class IncentiveReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Incentive Report"
+    @extend_schema()
     def post(self, request):
         try:
             month, year = report_services.get_previous_month_and_year()            
@@ -1422,4 +1440,3 @@ def team_and_product_wise_report(request):
     cursor.close()
     conn.close()
     return Response({"Team wise product wise report": data_by_cluster})
-

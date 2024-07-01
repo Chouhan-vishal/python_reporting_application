@@ -1,19 +1,19 @@
-from rest_framework.response import Response
-from django.core.mail import send_mail
+import random
 from django.conf import settings
+from django.core.mail import send_mail
+from rest_framework import serializers
+from users.models import UserActivityLog
+from django.utils.html import strip_tags
+from rest_framework.response import Response
+from reports.services import report_services
+from drf_spectacular.types import OpenApiTypes
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from django.utils.html import strip_tags
-import random
-from rest_framework import serializers
-from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
-from users.models import UserActivityLog
-from reports.services import report_services
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter
 
     
-def drf_schema(serializer_name, serializer_fields=None):
+def drf_schema(serializer_name=None, serializer_fields=None):
     if serializer_name=="DateSerializer":
         serializer_fields={
                 "start_date": serializers.DateField(input_formats=['%Y-%m-%d']),
@@ -41,24 +41,19 @@ def drf_schema(serializer_name, serializer_fields=None):
 # Send email with the html template
 def send_email(context,to_email,template_name,subject):
     html_message = render_to_string(template_name, context)
-    text_message = strip_tags(html_message)
-    
+    text_message = strip_tags(html_message)    
     email = EmailMultiAlternatives(subject, text_message, to=[to_email])
     email.attach_alternative(html_message, 'text/html')
     email.send()
-    
-  
+
 def response(status, data, status_code):
     return Response({
         'status': status,
         'data': data
     }, status=status_code) 
-    
-    
 
 def generate_otp():
     return str(random.randint(100000, 999999))
-
 
 #send opt via email without the html template
 def send_otp_email(email, otp):
@@ -66,26 +61,19 @@ def send_otp_email(email, otp):
     message = f'Your OTP for password reset is: {otp}'
     send_mail(subject, message, settings.EMAIL_HOST_USER, [email])
 
-def create_log(admin_user, user_name, action):
-    activity_log = UserActivityLog.objects.create(user=admin_user, action_type= action, object = "User", log=f'{action.title()} user {user_name}')
+def create_log(admin_user, user_name, action, sub_action = ""):
+    activity_log = UserActivityLog.objects.create(user=admin_user, action_type= action, object = "User", log=f'{action.title()} user {sub_action} {user_name}')
     activity_log.save()
 
-def is_manager(user):
-    return user.hierarchy.name == 'manager'
-
-def is_salesman(user):
-    return user.hierarchy.name == 'salesman'
-
-def is_admin(user):
-    return user.hierarchy.name == 'admin'
-
 def verify_user_existance(role, full_name):
-    conn =report_services.create_sql_server_connection()
+    conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
     if role == 'manager':
         query = f"select * from tbl_HierarchyMapping where [Reporting Manager Name] = '{full_name}'"
     elif role == "salesman":
         query = f"select * from tbl_HierarchyMapping where [Sales Person] = '{full_name}'"
+    elif role == "admin":
+        return True # by pass full_name if we creating admin User
     else:
         raise Exception("Role does not exist")
     cursor.execute(query)

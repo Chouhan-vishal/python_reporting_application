@@ -1,13 +1,13 @@
 # myapp/sql_service.py
 import os
 import pyodbc
+from .report_queries import * 
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-from users.models import UserActivityLog
+from reporting_application.utils import *
+from users.models import UserActivityLog, Reports
 from rest_framework.permissions import BasePermission
 from rest_framework.exceptions import PermissionDenied
-from .report_queries import * 
-from users.services.utils import *
 
 load_dotenv()
 
@@ -138,7 +138,6 @@ def get_previous_month_and_year():
 
     return last_month_month, last_month_year
 
-
 def create_log(user, report_name):
     activity_log = UserActivityLog.objects.create(user=user, action_type= "viewed", object = "Report", log=f'Viewed {report_name}')
     activity_log.save()
@@ -146,29 +145,22 @@ def create_log(user, report_name):
 class HasReportPermission(BasePermission):
     message = "You do not have permission to view this report."
     def has_permission(self, request, view):
+        report_view = view.get_view_name()
+        all_reports = Reports.objects.all()
         report_name_to_permission_map = {
-            "Sales Summary Report": "sales_summary",
-            "Sales Collection Outstanding Report": "sales_collection_outstanding",
-            "Product Wise Sales Summary": "product_wise_sales_summary",
-            "Weekly Summary": "weekly_summary",
-            "Collection Report": "collection",
-            "Customer Wise Outstanding": "customer_wise_outstanding",
-            "Cr Utilization Report": "cr_utilization",
-            "Salesman And Product Wise Report": "salesman_and_product_wise",
-            "Target And Achieved Report": "target_and_achieved",
-            "Welding Electrode Product Sales Reports": "welding_electrode",
-            "Durastrong Tmt Product Sales Report": "durastrong_tmt_product_sales",
-            "Sales Register Report": "sales_register",
-            "Block Customers List Report": "block_customers_list",
-            "Target Customer Sales Report": "target_customer_sales",
-            "Product Wise Month On Month Report": "product_wise_month_sales",
-            "Review Product Wise Report": "review_product_wise",
-            "All Customers Mom Report": "all_customers_sales",
-            "Review Salesman Wise Data": "review_salesman_wise",
-            "Incentive report": "incentive_report"
+            report.reports_name: report.keys
+            for report in all_reports
         }
-    
-        report_permission = report_name_to_permission_map.get(view.get_view_name())
+        report_permission = report_name_to_permission_map.get(report_view)
         if report_permission and hasattr(request.user, 'permitted_reports'):
             return request.user.permitted_reports.reports_permission.get(report_permission, False)
         raise PermissionDenied(self.message)
+
+def get_last_n_months_names(n):
+    current_date = datetime.now()
+    months = []
+    for i in range(n):
+        months.insert(i,current_date.strftime('%B'))
+        current_date = current_date - timedelta(days=current_date.day)
+    months = list(reversed(months))
+    return months

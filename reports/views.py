@@ -16,6 +16,7 @@ from users.serializers import UserActivityLogSerializer
 from rest_framework import serializers
 from datetime import datetime, timedelta
 logger = logging.getLogger('reports')
+from reports.models import ProductGroup
 
 class SalesSummaryReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
@@ -471,6 +472,7 @@ class CrUtilizationReport(APIView):
             team_name = request.data.get("team_name")
             salesman = request.data.get("salesman")
             user = request.user
+            
             try:
                 team_names = report_services.get_teamnames_for_user(user, team_name)
             except Exception as e:
@@ -1313,8 +1315,79 @@ class SalesmanKpiDashboard(APIView):
 
         return Response(final_data)
 
+class IncentiveReport(APIView):
+    permission_classes = [IsAuthenticated, HasReportPermission]
+    REPORT_NAME = "Incentive Report"
+    def post(self, request):
+        try:
+            month, year = report_services.get_previous_month_and_year()            
+            salesman = request.user.full_name
 
+            main_data, results, critera_result = self.fetch_product_wise_incentive_amount(month, year, salesman)
+            if not len(main_data) != 0:
+                return Response([], status=HTTP_200_OK)
+            response_data = self.process_product_wise_incentive_amount(main_data, results, critera_result)
+            report_services.create_log(user=request.user, report_name=self.REPORT_NAME)
+            return Response(response_data, status=HTTP_200_OK)
+        
+        except Exception as e:
+            return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+        
+    def fetch_product_wise_incentive_amount(self,month,year,salesman):
+        incentive_report_obj = report_queries.InsentiveQueries(month, year, salesman)
+        conn = report_services.create_sql_server_connection()
+        cursor = conn.cursor()
+        criteria_query = incentive_report_obj.elegibilty_criteria()
+        cursor.execute(criteria_query)
+        criteria_results = cursor.fetchall()
+        main_data = []
+        transformed_data = []
+        if len(criteria_results) != 0:
+            sql_query = incentive_report_obj.incentive_amount_query()
+            cursor.execute(sql_query)
+            main_results = cursor.fetchall()
+            main_data = [dict(zip([column[0] for column in cursor.description], row)) for row in main_results]
 
+            # SQL command to fetch data from the table
+            items = ProductGroup.objects.all()
+
+            # Initialize a dictionary to hold the grouped data
+            grouped_data = defaultdict(lambda: {'cost': 0, 'item_details': []})
+
+            # Group item details by item group, including cost at the group level
+            for item in items:
+                grouped_data[item.item_group]['cost'] = item.cost  # Assuming cost is the same for the entire group
+                grouped_data[item.item_group]['item_details'].append(item.item_details)
+            
+            transformed_data = dict(grouped_data)
+        return main_data, transformed_data, criteria_results
+    
+    def process_product_wise_incentive_amount(self, main_data, results, criteria_result):
+
+        group_achv_qty = defaultdict(float)
+        for entry in main_data:
+
+            product_detail = entry["Product Details"]
+            achv_qty = float(entry["Achv Qty"])
+            
+            for product_cluster_key, product_cluster_value in results.items():
+                if product_detail in product_cluster_value["item_details"]:
+                    group_achv_qty[product_cluster_key] += achv_qty
+
+        response_data = []
+
+        for key,value in results.items():
+            data = group_achv_qty.get(key)
+            cost = value.get("cost")
+            incentive_amount = 0
+            if data:
+                incentive_amount = cost * data
+                data = {"group_name": key, "achv_qty": data, "incentive_amount": incentive_amount}
+                response_data.append(data)
+        target_info = criteria_result[0]
+        target_details = {"final_details": { "target_qty": target_info[2], "achvd_qty": target_info[3], "achvd_percent": target_info[4] }}
+        response_data.append(target_details)
+        return response_data
 
 # ================================== Not including ================================================
 @api_view(["POST"])

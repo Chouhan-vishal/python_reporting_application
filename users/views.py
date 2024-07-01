@@ -37,6 +37,7 @@ from django.db.models import Count, Value, TextField
 from django.db.models.functions import Replace
 
 import logging
+from reporting_application.utils import *
 
 logger = logging.getLogger('users')
 

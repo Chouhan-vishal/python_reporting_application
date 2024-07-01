@@ -1,4 +1,4 @@
-from users.services.utils import *
+from reporting_application.utils import *
 
 
 def sales_summary_query(start_date, end_date, pre_date, team_names= None):

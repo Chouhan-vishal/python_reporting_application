@@ -21,4 +21,5 @@ urlpatterns = [
     path('all-customers-sales-report/', views.AllCustomersMomReport.as_view()),
     path('review-salesman-wise-report/', views.ReviewSalesmanWiseData.as_view()),
     path('salesman-kpi-dashboard/', views.SalesmanKpiDashboard.as_view()),
+    path('incentive-report/', views.IncentiveReport.as_view()),
 ]

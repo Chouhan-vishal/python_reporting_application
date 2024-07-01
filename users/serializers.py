@@ -1,10 +1,7 @@
 from rest_framework import serializers
 from .models import User, Hierarchy, TwoFactorAuthentication, ReportPermission, UserActivityLog
 from django.db import transaction
-
-
-
-
+from .services import utils
 
 class HierarchySerializer(serializers.ModelSerializer):
     class Meta:
@@ -35,7 +32,10 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         with transaction.atomic():
             role = validated_data.pop('role', None)
-            hierarchy_obj = Hierarchy.objects.filter(name=role.lower()).first()
+            user_role = role.lower()
+            full_name = validated_data.get("full_name")
+            utils.verify_user_existance(user_role, full_name)
+            hierarchy_obj = Hierarchy.objects.filter(name=user_role).first()
             reports_permission_data = validated_data.pop('permitted_reports', None)
             if reports_permission_data:
                 permissions_dict = reports_permission_data.get('reports_permission', None)          
@@ -57,8 +57,11 @@ class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         with transaction.atomic():
             hierarchy_name = validated_data.pop('role', None)
+            user_role = hierarchy_name.lower()
+            full_name = validated_data.get("full_name")
+            utils.verify_user_existance(user_role, full_name)
             if hierarchy_name:
-                hierarchy_obj = Hierarchy.objects.filter(name=hierarchy_name.lower()).first()
+                hierarchy_obj = Hierarchy.objects.filter(name=user_role).first()
                 if hierarchy_obj is None:
                     raise serializers.ValidationError(f'hierarchy with name {hierarchy_name} does not exist ')
                 else:

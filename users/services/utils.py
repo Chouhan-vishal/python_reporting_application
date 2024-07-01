@@ -10,6 +10,7 @@ from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParam
 from drf_spectacular.types import OpenApiTypes
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from users.models import UserActivityLog
+from reports.services import report_services
 
     
 def drf_schema(serializer_name, serializer_fields=None):
@@ -77,3 +78,19 @@ def is_salesman(user):
 
 def is_admin(user):
     return user.hierarchy.name == 'admin'
+
+def verify_user_existance(role, full_name):
+    conn =report_services.create_sql_server_connection()
+    cursor = conn.cursor()
+    if role == 'manager':
+        query = f"select * from tbl_HierarchyMapping where [Reporting Manager Name] = '{full_name}'"
+    elif role == "salesman":
+        query = f"select * from tbl_HierarchyMapping where [Sales Person] = '{full_name}'"
+    else:
+        raise Exception("Role does not exist")
+    cursor.execute(query)
+    results = cursor.fetchall()
+    if not len(results) > 0:
+        raise Exception(f"User '{full_name}' does not exist with '{role}' role")
+    cursor.close()
+    conn.close()

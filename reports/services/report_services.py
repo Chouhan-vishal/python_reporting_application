@@ -131,6 +131,13 @@ def count_months(start_date, end_date):
     
     return month_count
 
+def get_previous_month_and_year():
+    today = datetime.today()
+    last_month_year = today.year - (today.month == 1)
+    last_month_month = today.month - 1 if today.month > 1 else 12
+
+    return last_month_month, last_month_year
+
 
 def create_log(user, report_name):
     activity_log = UserActivityLog.objects.create(user=user, action_type= "viewed", object = "Report", log=f'Viewed {report_name}')
@@ -157,7 +164,8 @@ class HasReportPermission(BasePermission):
             "Product Wise Month On Month Report": "product_wise_month_sales",
             "Review Product Wise Report": "review_product_wise",
             "All Customers Mom Report": "all_customers_sales",
-            "Review Salesman Wise Data": "review_salesman_wise"
+            "Review Salesman Wise Data": "review_salesman_wise",
+            "Incentive report": "incentive_report"
         }
     
         report_permission = report_name_to_permission_map.get(view.get_view_name())

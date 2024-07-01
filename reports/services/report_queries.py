@@ -1329,3 +1329,148 @@ def salesman_names_query(team_name = None):
         sub_query = f"WHERE [Team Name] = '{team_name}'"
     sql_query = f"Select Distinct [Sales Person] from tbl_HierarchyMapping {sub_query}"
     return sql_query
+
+class InsentiveQueries:
+    def __init__(self, month, year, salesman = None) -> None:
+        self.month = month
+        self.year = year
+        self.salesman = salesman
+
+    def elegibilty_criteria(self):
+        sql_query = f"""
+        WITH SalesTeamCTE AS (
+        SELECT   
+                ST.[Team Name],   
+                [Sales Person], 
+                CAST(GETDATE() AS Date) AS [Date],
+                CAST(0 AS Decimal(10,2)) AS [Target Qty],  
+                CAST(0 AS Decimal(10,2)) AS [Achv Qty],
+                CAST(GETDATE()-2 AS Date) AS [Previous Date]
+        FROM [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)
+        ),
+        TargetCustomers AS (
+        SELECT DISTINCT
+                SV.[Team Name],    
+                [Sales Person],
+                ROUND(SUM(CAST(SV.[Target Qty] AS Decimal(10,2))),2) AS [Target Qty]
+        FROM [dbo].[tbl_TargetCustomers] SV WITH(NOLOCK)
+        WHERE [Item Category] <> 'Welding Electrodes'
+        GROUP BY 
+                SV.[Team Name],
+                [Sales Person]
+        ),
+        Sales AS (
+        SELECT      
+                ST.[Team Name],   
+                [Sales Person],
+                SUM([Qty(MTs)]) AS [Achv Qty]
+        FROM SalesTeamCTE ST
+        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK)
+        ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
+        AND SV.[Item Details] <> 'Welding Electrodes'
+        AND YEAR(SV.[Voucher Date]) = {self.year} 
+        AND MONTH(SV.[Voucher Date]) = {self.month}
+        GROUP BY 
+                ST.[Team Name],    
+                [Sales Person]
+        ),
+        FilteredSales AS (
+        SELECT DISTINCT
+            S.[Team Name],
+            S.[Sales Person],
+            SV.[Voucher No],
+            CASE 
+                WHEN DATEDIFF(DAY, SV.[Voucher Date], RR.[Receipt Date]) <= 35 
+                    --  AND NOT EXISTS (
+                    --      SELECT 1
+                    --      FROM [dbo].[tbl_OutStandings] OS WITH (NOLOCK)
+                    --      WHERE OS.[Bill No] = SV.[Voucher No]
+                    --  )
+                    THEN 1 
+                ELSE 0 
+            END AS [Condition Met]
+        FROM Sales S
+        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK) ON S.[Sales Person] = SV.[Sales Person -2]
+        INNER JOIN [dbo].[tbl_ReceiptRegister] RR WITH(NOLOCK) ON RR.[Invoice No] = SV.[Voucher No]
+        WHERE YEAR(SV.[Voucher Date]) = {self.year} 
+            AND MONTH(SV.[Voucher Date]) = {self.month}
+            AND DATEDIFF(DAY, SV.[Voucher Date], RR.[Receipt Date]) <= 35
+        GROUP BY 
+            S.[Team Name],
+            S.[Sales Person],
+            SV.[Voucher No],
+            SV.[Voucher Date],
+            RR.[Receipt Date]
+        )
+
+        SELECT DISTINCT
+        ST.[Team Name],
+        ST.[Sales Person],
+        ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],
+        ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
+        ISNULL(ROUND(CAST(ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS float) / NULLIF(CAST(ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS float), 0) * 100, 0), 0) AS [Achv %],
+        FS.[Condition Met] AS [Condition Met]
+        FROM SalesTeamCTE ST
+        LEFT JOIN FilteredSales FS
+        ON ST.[Team Name] = FS.[Team Name] AND ST.[Sales Person] = FS.[Sales Person]
+        WHERE ST.[Sales Person] = '{self.salesman}'
+
+        AND ISNULL(ROUND(CAST(ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS float) / NULLIF(CAST(ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS float), 0) * 100, 0), 0) > 80
+        ORDER BY ST.[Team Name], ST.[Sales Person];
+        """
+        return sql_query
+    
+    def incentive_amount_query(self):
+        sql_query = f"""
+WITH Sales AS (
+    SELECT          
+        ST.[Sales Person],
+        IL.[Item Category] AS [Product cluster],
+        IL.[Item Details] AS [Product Details], -- Added Product Details field
+        ISNULL(TC.[Target Qty], 0) AS [Target Qty],
+        SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END) AS [Achv Qty]
+    FROM [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)  
+    INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK) 
+        ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))  
+    INNER JOIN (
+        SELECT DISTINCT
+            [Item Details],
+            [Item Category] 
+        FROM dbo.tbl_ItemsList IL WITH(NOLOCK)
+    ) IL   
+        ON IL.[Item Details] = SV.[Item Details]  
+    LEFT JOIN (
+        SELECT     
+            [Sales Person],
+            [Item Category] AS [Product cluster],
+            ROUND(SUM(CAST([Target Qty] AS DECIMAL(10,2))),2) AS [Target Qty]
+        FROM [dbo].[tbl_TargetCustomers] WITH(NOLOCK)
+        GROUP BY 
+            [Sales Person],
+            [Item Category]
+    ) TC 
+        ON TC.[Sales Person] = ST.[Sales Person] AND TC.[Product cluster] = IL.[Item Category]
+    WHERE YEAR(SV.[Voucher Date]) = {self.year} AND MONTH(SV.[Voucher Date]) = {self.month}
+    AND (LOWER(ST.[Sales Person]) = LOWER('{self.salesman}'))
+    GROUP BY 
+        ST.[Sales Person],
+        IL.[Item Category],
+        IL.[Item Details], -- Added for Product Details
+        TC.[Target Qty]
+)
+SELECT    
+    [Sales Person],
+    [Product cluster],
+    [Product Details], -- Include Product Details in the SELECT list
+    [Target Qty],
+    SUM([Achv Qty]) AS [Achv Qty],
+    ISNULL(ROUND(SUM([Achv Qty]) / NULLIF([Target Qty], 0) * 100, 0), 0) AS [Achv %]
+FROM Sales
+GROUP BY
+    [Sales Person],
+    [Product cluster],
+    [Product Details], -- Group by Product Details as well
+    [Target Qty];
+
+        """
+        return sql_query

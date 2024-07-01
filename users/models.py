@@ -65,7 +65,8 @@ class UserManager(BaseUserManager):
                 "salesman_and_product_wise": False,
                 "target_and_achieved": False,
                 "target_customer_sales": False,
-                "all_customers_sales": False
+                "all_customers_sales": False,
+                "incentive_report": False
                 }
         if hierarchy.name == 'manager':
             report_permission = ReportPermission.objects.create(reports_permission=manager_permission_set())

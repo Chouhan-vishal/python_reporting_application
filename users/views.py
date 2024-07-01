@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from dotenv import load_dotenv
 from reporting_application.constants import *
-from .services.utils import generate_otp, send_otp_email, create_log, is_admin, is_salesman, is_manager
+from .services.utils import generate_otp, send_otp_email, create_log
 from datetime import datetime, timedelta
 from django.utils.timezone import now as aware_utcnow
 from django.db.models import Q, Count

@@ -356,6 +356,7 @@ class Profile(APIView):
                 "target_customer_sales",
                 "weekly_summary",
                 "welding_electrode",
+                "incentive_report"
             ]
             if not user.is_admin:
                 accessible_reports_list = []

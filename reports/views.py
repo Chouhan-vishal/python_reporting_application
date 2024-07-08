@@ -1056,16 +1056,16 @@ class ReviewProductWiseReport(APIView):
         results = cursor.fetchall()
 
         return results
-
-    def process_review_product_wise_report(self,results):
+    def process_review_product_wise_report(self,results, month_count):
         data = defaultdict(lambda: defaultdict(lambda: {"Target Qty": 0, "Months": defaultdict(float)}))
         # Process the results
+        last_n_months = report_services.get_last_n_months_names(month_count)
         for row in results:
             team_name, product_cluster, target_qty, achv_qty, year, month = row
             if achv_qty is None:
                 achv_qty = 0.0
-            if month is None:
-                month = "No Month"
+            # if month is None:
+            #     month = "No Month"
             data[team_name][product_cluster]["Target Qty"] = float(target_qty)
             data[team_name][product_cluster]["Months"][month] = float(achv_qty)
 
@@ -1078,12 +1078,19 @@ class ReviewProductWiseReport(APIView):
                     "Target Qty": product_data["Target Qty"],
                     "Months": dict(product_data["Months"])
                 }
+                for month in last_n_months:
+                    if month not in product_data['Months'].keys():
+                        months_dict = product_dict.get('Months')
+                        months_dict.update({month: 0.0})
+                        product_dict = {
+                        "Target Qty": product_data["Target Qty"],
+                        "Months": months_dict
+                        }
                 team_products[product] = product_dict
             result.append({team: team_products})
         return result
 
     def post(self,request):
-        
         try:
             team_name = request.data.get("team_name")
             salesman = request.data.get("salesman")
@@ -1099,7 +1106,7 @@ class ReviewProductWiseReport(APIView):
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
 
             data = self.fetch_review_product_wise_report(month_count, team_names, salesman)
-            result = self.process_review_product_wise_report(data)
+            result = self.process_review_product_wise_report(data, month_count)
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, result, HTTP_200_OK)
@@ -1107,6 +1114,7 @@ class ReviewProductWiseReport(APIView):
         except Exception as e:
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
+
 
 
 

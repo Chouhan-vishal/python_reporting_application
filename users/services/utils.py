@@ -77,6 +77,8 @@ def verify_user_existance(role, full_name):
         query = f"select * from tbl_HierarchyMapping where [Reporting Manager Name] = '{full_name}'"
     elif role == "salesman":
         query = f"select * from tbl_HierarchyMapping where [Sales Person] = '{full_name}'"
+    elif role == "admin":
+        return True # by pass full_name if we creating admin User
     else:
         raise Exception("Role does not exist")
     cursor.execute(query)

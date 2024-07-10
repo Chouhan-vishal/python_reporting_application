@@ -1068,16 +1068,20 @@ class ReviewProductWiseReport(APIView):
             #     month = "No Month"
             data[team_name][product_cluster]["Target Qty"] = float(target_qty)
             data[team_name][product_cluster]["Months"][month] = float(achv_qty)
-
         # Convert the data to the desired format
         result = []
         for team, products in data.items():
             team_products = {}
             for product, product_data in products.items():
                 product_dict = {
-                    "Target Qty": product_data["Target Qty"],
-                    "Months": dict(product_data["Months"])
+                "Target Qty": product_data["Target Qty"],
+                "Months": dict(product_data.get("Months", {}))
                 }
+
+                try:
+                    del product_dict["Months"][""]
+                except:
+                    pass
                 for month in last_n_months:
                     if month not in product_data['Months'].keys():
                         months_dict = product_dict.get('Months')

@@ -172,3 +172,11 @@ class HasReportPermission(BasePermission):
         if report_permission and hasattr(request.user, 'permitted_reports'):
             return request.user.permitted_reports.reports_permission.get(report_permission, False)
         raise PermissionDenied(self.message)
+
+def get_last_n_months_names(n):
+    current_date = datetime.now()
+    months = []
+    for i in range(n):
+        months.append(current_date.strftime('%B'))
+        current_date = current_date - timedelta(days=current_date.day)
+    return months

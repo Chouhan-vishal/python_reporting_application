@@ -1076,7 +1076,7 @@ def review_product_wise_query(month_count, team_names, salesman=None):
                 [Item Category]
             FROM dbo.tbl_ItemsList IL WITH (NOLOCK)
         ) IL ON IL.[Item Details] = SV.[Item Details]
-        WHERE SV.[Voucher Date] >= DATEADD(MONTH, -{month_count}, GETDATE())
+        WHERE SV.[Voucher Date] >= DATEADD(MONTH, -{month_count-1}, DATEADD(DAY, 1 - DAY(GETDATE()), CAST(GETDATE() AS DATE)))
         {sub_query2}
         AND SV.[Item Details] <> 'Welding Electrodes'
         GROUP BY

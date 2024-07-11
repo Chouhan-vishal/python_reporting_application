@@ -66,8 +66,8 @@ def send_otp_email(email, otp):
     message = f'Your OTP for password reset is: {otp}'
     send_mail(subject, message, settings.EMAIL_HOST_USER, [email])
 
-def create_log(admin_user, user_name, action):
-    activity_log = UserActivityLog.objects.create(user=admin_user, action_type= action, object = "User", log=f'{action.title()} user {user_name}')
+def create_log(admin_user, user_name, action, sub_action = ""):
+    activity_log = UserActivityLog.objects.create(user=admin_user, action_type= action, object = "User", log=f'{action.title()} user {sub_action} {user_name}')
     activity_log.save()
 
 def verify_user_existance(role, full_name):

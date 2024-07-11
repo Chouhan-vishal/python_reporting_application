@@ -184,7 +184,7 @@ class ReportPermission(models.Model):
 class UserActivityLog(models.Model):
     ACTION_CHOICES = [
         ('created', 'Created'),
-        ('updatedd', 'Update'),
+        ('updated', 'Updated'),
         ('deleted', 'Deleted'),
         ('viewed', 'Viewed'),
         # Add more action types as needed

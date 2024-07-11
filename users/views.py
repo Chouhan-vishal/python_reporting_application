@@ -532,7 +532,7 @@ class ResetPassword(APIView):
             user.set_password(new_password)
             user.save()
             if admin_user:
-                UserActivityLog.objects.create(user=user,action_type="Reset_pwd",object="User",log="Password Reset") 
+                create_log(request.user, user.full_name, "Update", "password for")
             logger.info(f'Password reset for user {user.email}')
             return response(SUCCESS, {MESSAGE: "Password reset successfully"}, HTTP_200_OK)
         except Exception as e:

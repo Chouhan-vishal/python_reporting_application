@@ -1075,21 +1075,10 @@ class ReviewProductWiseReport(APIView):
             for product, product_data in products.items():
                 product_dict = {
                 "Target Qty": product_data["Target Qty"],
-                "Months": dict(product_data.get("Months", {}))
+                "Months":  {month: product_data["Months"].get(month, 0.0) for month in last_n_months}
                 }
-
-                try:
-                    del product_dict["Months"][""]
-                except:
-                    pass
-                for month in last_n_months:
-                    if month not in product_data['Months'].keys():
-                        months_dict = product_dict.get('Months')
-                        months_dict.update({month: 0.0})
-                        product_dict = {
-                        "Target Qty": product_data["Target Qty"],
-                        "Months": months_dict
-                        }
+                # remove the empty keys from months
+                product_dict["Months"].pop("", None)
                 team_products[product] = product_dict
             result.append({team: team_products})
         return result

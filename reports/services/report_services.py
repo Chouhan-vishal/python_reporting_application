@@ -177,6 +177,7 @@ def get_last_n_months_names(n):
     current_date = datetime.now()
     months = []
     for i in range(n):
-        months.append(current_date.strftime('%B'))
+        months.insert(i,current_date.strftime('%B'))
         current_date = current_date - timedelta(days=current_date.day)
+    months = list(reversed(months))
     return months

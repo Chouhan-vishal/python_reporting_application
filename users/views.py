@@ -345,6 +345,7 @@ class Profile(APIView):
                 "cr_utilization",
                 "customer_wise_outstanding",
                 "durastrong_tmt_product_sales",
+                "incentive_report",
                 "product_wise_month_sales",
                 "product_wise_sales_summary",
                 "review_product_wise",
@@ -356,8 +357,10 @@ class Profile(APIView):
                 "target_customer_sales",
                 "weekly_summary",
                 "welding_electrode",
-                "incentive_report"
             ]
+            if is_salesman(user):
+                report_order.pop("sales_collection_outstanding")
+                report_order.insert(13, "sales_collection_outstanding",)
             if not user.is_admin:
                 accessible_reports_list = []
                 for report in report_order:

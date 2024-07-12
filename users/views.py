@@ -1,15 +1,12 @@
-from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_201_CREATED
-from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import authenticate
 from .services.auth_token import AuthTokenService
-from rest_framework_simplejwt.tokens import Token, RefreshToken, AccessToken
+from rest_framework_simplejwt.tokens import AccessToken
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from .services.utils import response
 from django.core.exceptions import ValidationError
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from dotenv import load_dotenv
 from reporting_application.constants import *
 from .services.utils import generate_otp, send_otp_email, create_log
 from datetime import datetime, timedelta
@@ -20,19 +17,16 @@ from .services.utils import *
 from rest_framework.views import APIView
 from rest_framework import status
 import pyotp
-from .serializers import UserSerializer, UserActivityLogSerializer, LoginSerializer, TwoFactorAuthenticationSerializer,UserSearchSerializer
+from .serializers import UserSerializer, UserActivityLogSerializer, TwoFactorAuthenticationSerializer,UserSearchSerializer
 from .models import (
     User,
     OTP,
     TwoFactorAuthentication,
-    ReportPermission,
     UserActivityLog,
-    Hierarchy
 )
 from rest_framework import serializers
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, inline_serializer, OpenApiTypes, extend_schema_serializer
+from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer, OpenApiTypes, extend_schema_serializer
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular import openapi
 from django.db.models import Count, Value, TextField
 from django.db.models.functions import Replace
 
@@ -507,18 +501,13 @@ class VerifyOTP(APIView):
             return response(FAILED, {ERROR: f'error during OTP verification: {str(e)}'}, HTTP_400_BAD_REQUEST)
     
 class ResetPassword(APIView):
-    @extend_schema(
-    request=inline_serializer(
-        name="EmailSerializer",
-        fields = {
-            "email": serializers.EmailField(required=True),
-        }
-    ),  
-    responses={HTTP_200_OK: {},
-            HTTP_400_BAD_REQUEST: {}
-    },
-    description="Password Reset API",
-    )
+    @drf_schema(serializer_name="RestPasswrodSerializer",
+                serializer_fields={
+                    "email":serializers.EmailField(required=True),
+                    "passwrd":serializers.CharField(required=True),
+                    "confirm_password":serializers.CharField(required=True),
+                    "token":serializers.CharField(required=True)
+                })
     def post(self, request):
         """
         Reset the user's password.
@@ -691,11 +680,10 @@ class UserSearch(APIView):
 class TeamNames(APIView):
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        request=None,
-        responses={HTTP_200_OK: OpenApiTypes.OBJECT},
-        description="Get a list of team names."
-    )
+    @drf_schema(serializer_name="TeamNameSerializer",
+                serializer_fields={
+                    "manager_name": serializers.CharField()
+            })
     def post(self, request):
         """
         Get a list of team names.
@@ -774,11 +762,10 @@ class SalesmanList(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        request=None,
-        responses={HTTP_200_OK: OpenApiTypes.OBJECT},
-        description="Get a list of salesman names."
-    )
+    @drf_schema(serializer_name="SalesmanListSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField()
+            })
     def post(self, request):
         try:
             team_name = request.data.get("team_name", None)

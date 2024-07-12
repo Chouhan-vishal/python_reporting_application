@@ -1,22 +1,20 @@
-from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from reports.services import report_services, report_queries, dashboard_queries
 from reports.services.report_services import HasReportPermission
-from django.db import connection, DatabaseError
 from rest_framework.views import APIView
 from users.services.utils import drf_schema, response
 from collections import defaultdict
 from reporting_application.constants import *
 import logging
-from users.models import UserActivityLog , User
-from users.serializers import UserActivityLogSerializer
+from users.models import User
 from rest_framework import serializers
 from datetime import datetime, timedelta
 logger = logging.getLogger('reports')
 from reports.models import ProductGroup
+from users.services.utils import extend_schema
 
 class SalesSummaryReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
@@ -431,9 +429,9 @@ class CustomerWiseOutstanding(APIView):
 
     @drf_schema(serializer_name="CustomerWiseOutstandingSerializer",
             serializer_fields={
-                "outstanding_value": serializers.IntegerField(),
                 "team_name": serializers.CharField(),
-                "salesman": serializers.CharField()
+                "salesman": serializers.CharField(),
+                "outstanding_value": serializers.IntegerField()
             })
     def post(self,request):
         try:
@@ -552,7 +550,9 @@ class SalesmanAndProductWiseReport(APIView):
     @drf_schema(serializer_name="SalesmanProductWiseReportSerializer",
         serializer_fields={
             "team_name": serializers.CharField(),
-            "salesman": serializers.CharField()
+            "salesman": serializers.CharField(),
+            "year":serializers.CharField(),
+            "month":serializers.CharField()
         })
     def post(self,request):
         try:
@@ -647,7 +647,12 @@ class TargetAndAchievedReport(APIView):
             
         return team_sales_summary_list
 
-    @drf_schema(serializer_name="DateSerializer")
+    @drf_schema(serializer_name="TargetAndAchievedReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "month": serializers.CharField(),
+                    "year": serializers.CharField()
+                })
     def post(self,request):
         try:
             team_name = request.data.get("team_name")
@@ -859,7 +864,12 @@ class SalesRegisterReport(APIView):
         conn.close()
         return data
     
-    @drf_schema(serializer_name="DateSerializer")
+    @drf_schema(serializer_name="SalesRegisterReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "start_date": serializers.DateField(input_formats=['%Y-%m-%d']),
+                    "end_date": serializers.DateField(input_formats=['%Y-%m-%d'])
+                })
     def post(self,request):
         try:
             user = request.user
@@ -899,6 +909,7 @@ class BlockCustomersListReport(APIView):
         cursor.close()
         conn.close()
         return data
+    @extend_schema()
     def post(self,request):
         try:
             user = request.user
@@ -957,7 +968,12 @@ class AllCustomersMomReport(APIView):
                     "achvd_qty": achv_qty
                 })
         return result
-    
+    @drf_schema(serializer_name="AllCustomerMomReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })
     def post(self,request):
         try:
             team_name = request.data.get("team_name")
@@ -1022,7 +1038,12 @@ class ProductWiseMonthOnMonthReport(APIView):
                 
                 intermediate_result[item_category][month] = achvd_qty
         return intermediate_result
-    
+    @drf_schema(serializer_name="ProductWiseMonthOnMonthReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })
     def post(self,request):
         try:
             user = request.user
@@ -1093,7 +1114,12 @@ class ReviewProductWiseReport(APIView):
                 team_products[product] = product_dict
             result.append({team: team_products})
         return result
-
+    @drf_schema(serializer_name="ReviewProductWiseReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })
     def post(self,request):
         try:
             team_name = request.data.get("team_name")
@@ -1161,9 +1187,12 @@ class TargetCustomerSalesReport(APIView):
                     "achvd_qty": achv_qty
                 })
         return aggregated_result
-    
-
-
+    @drf_schema(serializer_name="TargetCustomerSalesReportSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })    
     def post(self,request):
         try:
             team_name = request.data.get("team_name")
@@ -1258,7 +1287,12 @@ class ReviewSalesmanWiseData(APIView):
             team_data["team_name"] = team_name
             combined_data.append(team_data)
         return combined_data
-
+    @drf_schema(serializer_name="ReviewSalesmanWiseDataSerializer",
+                serializer_fields={
+                    "team_name": serializers.CharField(),
+                    "salesman": serializers.CharField(),
+                    "month_count": serializers.IntegerField()
+                })
     def post(self,request):
         try:
             user = request.user
@@ -1290,6 +1324,7 @@ class ReviewSalesmanWiseData(APIView):
 class SalesmanKpiDashboard(APIView):
     REPORT_NAME = ""
     permission_classes = [IsAuthenticated]
+    @extend_schema()
     def post(self,request):
         user = request.user
         # Fetch the queries for main data and customer data
@@ -1330,6 +1365,7 @@ class SalesmanKpiDashboard(APIView):
 class IncentiveReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Incentive Report"
+    @extend_schema()
     def post(self, request):
         try:
             month, year = report_services.get_previous_month_and_year()            

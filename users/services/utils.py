@@ -13,7 +13,7 @@ from users.models import UserActivityLog
 from reports.services import report_services
 
     
-def drf_schema(serializer_name, serializer_fields=None):
+def drf_schema(serializer_name=None, serializer_fields=None):
     if serializer_name=="DateSerializer":
         serializer_fields={
                 "start_date": serializers.DateField(input_formats=['%Y-%m-%d']),

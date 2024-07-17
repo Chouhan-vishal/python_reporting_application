@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Hierarchy, TwoFactorAuthentication, ReportPermission, UserActivityLog
+from .models import User, Hierarchy, TwoFactorAuthentication, ReportPermission, UserActivityLog, UserManager
 from django.db import transaction
 from .services import utils
 
@@ -51,7 +51,6 @@ class UserSerializer(serializers.ModelSerializer):
                 permitted_reports_obj.reports_permission.update(permitted_report_dict_data)
                 permitted_reports_obj.save()
                 user.save()
-
             return user
 
     def update(self, instance, validated_data):
@@ -77,10 +76,13 @@ class UserSerializer(serializers.ModelSerializer):
             reports_permission = validated_data.pop('permitted_reports', None)
             if reports_permission:
                 reports_permission_data = reports_permission.get('reports_permission', None)
-                permitted_reports_obj = instance.permitted_reports
-                permitted_report_dict_data = {key: value for key, value in reports_permission_data.items() if key in permitted_reports_obj.reports_permission.keys()}
-                permitted_reports_obj.reports_permission.update(permitted_report_dict_data)
-                permitted_reports_obj.save()
+                if reports_permission_data is not None:
+                    permitted_reports_obj = instance.permitted_reports
+                    user_role = instance.hierarchy.name
+                    allowed_permissions = UserManager.get_allowed_permissions(user_role)
+                    valid_permissions = {key: value for key, value in reports_permission_data.items() if key in allowed_permissions}
+                    permitted_reports_obj.reports_permission.update(valid_permissions)
+                    permitted_reports_obj.save()
             instance.save()
             return instance
 

@@ -5,6 +5,55 @@ from django.conf import settings
 
 
 class UserManager(BaseUserManager):
+    @staticmethod
+    def manager_permission_set():
+        return {
+            "sales_summary": False,
+            "product_wise_sales_summary": False,
+            "sales_collection_outstanding": False,
+            "weekly_summary": False,
+            "collection": False,
+            "customer_wise_outstanding": False,
+            "cr_utilization": False,
+            "salesman_and_product_wise": False,
+            "target_and_achieved": False,
+            "target_customer_sales": False,
+            "all_customers_sales": False,
+            "welding_electrode": False,
+            "durastrong_tmt_product_sales": False,
+            "review_product_wise": False,
+            "sales_register": False,
+            "product_wise_month_sales": False,
+            "block_customers_list": False,
+            "review_salesman_wise": False
+        }
+    @staticmethod
+    def salesman_permission_set():
+        return { 
+            "sales_collection_outstanding": False,
+            "weekly_summary": False,
+            "collection": False,
+            "customer_wise_outstanding": False,
+            "cr_utilization" : False,
+            "salesman_and_product_wise": False,
+            "target_and_achieved": False,
+            "target_customer_sales": False,
+            "all_customers_sales": False,
+            "incentive_report": False
+            }
+    @classmethod
+    def get_allowed_permissions(cls, user_role):
+        if user_role == 'manager':
+            manager_permissions = cls.manager_permission_set()
+            allowed_permissions = manager_permissions
+        elif user_role == 'salesman':
+            salesman_permissions = cls.salesman_permission_set()
+            allowed_permissions = salesman_permissions
+        else:
+            allowed_permissions = {}
+
+        return allowed_permissions
+
     def create_user(self, emp_code, email, phone_number, is_active=True, team_name=None, manager_name = None,  hierarchy = None, full_name=None, password=None, is_admin=False, admin_user= None):
         """
         Creates and saves a User with the given email, emp_code, phone_number,
@@ -34,44 +83,11 @@ class UserManager(BaseUserManager):
 
         user.set_password(password)
         user.save(using=self._db)
-        def manager_permission_set():
-            return {
-                "sales_summary": False,
-                "product_wise_sales_summary": False,
-                "sales_collection_outstanding": False,
-                "weekly_summary": False,
-                "collection": False,
-                "customer_wise_outstanding": False,
-                "cr_utilization": False,
-                "salesman_and_product_wise": False,
-                "target_and_achieved": False,
-                "target_customer_sales": False,
-                "all_customers_sales": False,
-                "welding_electrode": False,
-                "durastrong_tmt_product_sales": False,
-                "review_product_wise": False,
-                "sales_register": False,
-                "product_wise_month_sales": False,
-                "block_customers_list": False,
-                "review_salesman_wise": False
-            }
-        def salesman_permission_set():
-            return { 
-                "sales_collection_outstanding": False,
-                "weekly_summary": False,
-                "collection": False,
-                "customer_wise_outstanding": False,
-                "cr_utilization" : False,
-                "salesman_and_product_wise": False,
-                "target_and_achieved": False,
-                "target_customer_sales": False,
-                "all_customers_sales": False,
-                "incentive_report": False
-                }
+        
         if hierarchy.name == 'manager':
-            report_permission = ReportPermission.objects.create(reports_permission=manager_permission_set())
+            report_permission = ReportPermission.objects.create(reports_permission=UserManager.manager_permission_set())
         elif hierarchy.name == 'salesman':
-            report_permission = ReportPermission.objects.create(reports_permission=salesman_permission_set())
+            report_permission = ReportPermission.objects.create(reports_permission=UserManager.salesman_permission_set())
         else:
             report_permission = ReportPermission.objects.create()
 

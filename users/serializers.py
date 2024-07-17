@@ -1,7 +1,7 @@
+from .services import utils
+from django.db import transaction
 from rest_framework import serializers
 from .models import User, Hierarchy, TwoFactorAuthentication, ReportPermission, UserActivityLog, UserManager
-from django.db import transaction
-from .services import utils
 
 class HierarchySerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,7 +13,6 @@ class ReportPermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReportPermission
         fields = ['id', 'reports_permission']
-
 
 class UserSerializer(serializers.ModelSerializer):
     hierarchy = HierarchySerializer(read_only=True)
@@ -86,8 +85,6 @@ class UserSerializer(serializers.ModelSerializer):
             instance.save()
             return instance
 
-
-
 class UserActivityLogSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     class Meta:
@@ -145,7 +142,6 @@ class TwoFactorAuthenticationSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid OTP format. OTP must be a 6-digit number.")
 
         return data
-
 
 class UserSearchSerializer(serializers.Serializer):
     query = serializers.CharField(max_length=255)

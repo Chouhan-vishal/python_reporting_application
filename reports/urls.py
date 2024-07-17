@@ -1,5 +1,5 @@
-from django.urls import path
 from . import views
+from django.urls import path
 
 urlpatterns = [
     path('sales-summary-report/', views.SalesSummaryReport.as_view()),

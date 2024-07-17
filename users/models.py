@@ -1,8 +1,7 @@
 from django.db import models
-from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
-from django.utils import timezone
 from django.conf import settings
-
+from django.utils import timezone
+from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 
 class UserManager(BaseUserManager):
     @staticmethod
@@ -114,7 +113,6 @@ class Hierarchy(models.Model):
     def __str__(self):
         return self.name
 
-
 class User(AbstractBaseUser):
     hierarchy = models.ForeignKey(
         Hierarchy,
@@ -173,7 +171,6 @@ class User(AbstractBaseUser):
         "Is the user a member of staff?"
         # Simplest possible answer: All admins are staff
         return self.is_admin
-
 
 class OTP(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

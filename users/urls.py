@@ -1,5 +1,5 @@
-from django.urls import path, re_path
 from . import views
+from django.urls import path, re_path
 
 urlpatterns = [
     re_path(r'^$', views.Users.as_view()),
@@ -19,4 +19,3 @@ urlpatterns = [
     re_path(r'^salesmans/?$', views.SalesmanList.as_view()),
     re_path(r'^admin-dashboard/?$', views.AdminDashboard.as_view()),
 ]
-

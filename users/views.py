@@ -1,40 +1,33 @@
-from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_201_CREATED
-from django.contrib.auth import authenticate
-from .services.auth_token import AuthTokenService
-from rest_framework_simplejwt.tokens import AccessToken
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from .services.utils import response
-from django.core.exceptions import ValidationError
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from reporting_application.constants import *
-from .services.utils import generate_otp, send_otp_email, create_log
-from datetime import datetime, timedelta
-from django.utils.timezone import now as aware_utcnow
-from django.db.models import Q, Count
-from reports.services import report_services, report_queries
-from .services.utils import *
-from rest_framework.views import APIView
-from rest_framework import status
 import pyotp
-from .serializers import UserSerializer, UserActivityLogSerializer, TwoFactorAuthenticationSerializer,UserSearchSerializer
-from .models import (
-    User,
-    OTP,
-    TwoFactorAuthentication,
-    UserActivityLog,
-)
-from rest_framework import serializers
-from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer, OpenApiTypes, extend_schema_serializer
-from drf_spectacular.types import OpenApiTypes
-from django.db.models import Count, Value, TextField
-from django.db.models.functions import Replace
-
 import logging
+from .services.utils import *
+from rest_framework import status
+from .services.utils import response
+from django.db.models import Q, Count
+from rest_framework import serializers
+from rest_framework.views import APIView
+from datetime import datetime, timedelta
 from reporting_application.utils import *
+from rest_framework.response import Response
+from django.contrib.auth import authenticate
+from reporting_application.constants import *
+from drf_spectacular.types import OpenApiTypes
+from django.db.models.functions import Replace
+from .services.auth_token import AuthTokenService
+from django.core.exceptions import ValidationError
+from django.db.models import Count, Value, TextField
+from django.utils.timezone import now as aware_utcnow
+from rest_framework_simplejwt.tokens import AccessToken
+from reports.services import report_services, report_queries
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from .services.utils import generate_otp, send_otp_email, create_log
+from .models import User, OTP, TwoFactorAuthentication, UserActivityLog
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_201_CREATED
+from .serializers import UserSerializer, UserActivityLogSerializer, TwoFactorAuthenticationSerializer,UserSearchSerializer
+from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer, OpenApiTypes, extend_schema_serializer
 
 logger = logging.getLogger('users')
-
 
 class TwoFactorAuthenticationView(APIView):
     @extend_schema(
@@ -54,7 +47,6 @@ class TwoFactorAuthenticationView(APIView):
         Returns:
             Response: Response object containing access token or error message.
         """
-
 
         try:
             otp = request.data.get('otp')
@@ -79,9 +71,6 @@ class TwoFactorAuthenticationView(APIView):
         except Exception as e:
             logger.error(f'Error during user authentication: {str(e)}')                         
             return response(FAILED, {ERROR: f'Error during user authentication: {str(e)}'}, HTTP_400_BAD_REQUEST)     
-
-                   
-
 
 class Login(APIView):
     
@@ -143,8 +132,6 @@ class Login(APIView):
             logger.error(f'Error during OTP verification: {str(e)}')
             return response(FAILED, {ERROR: f'Error during OTP verification: {str(e)}'}, HTTP_400_BAD_REQUEST)
 
-
-
 class Logout(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -167,7 +154,6 @@ class Logout(APIView):
         except Exception as e:
             logger.error(f'Error during user logout: {str(e)}')
             return response(FAILED, {ERROR: f'Error during user logout: {str(e)}'}, HTTP_400_BAD_REQUEST)
-
 
 class Users(APIView):
     permission_classes = [IsAdminUser, IsAuthenticated]
@@ -302,7 +288,6 @@ class Users(APIView):
             logger.error(f'error during user registration: {str(e)}')
             return response(FAILED, {ERROR: f'error during user registration: {str(e)}'}, HTTP_400_BAD_REQUEST)
 
-
 class Profile(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -367,8 +352,7 @@ class Profile(APIView):
             return response(SUCCESS, data, status.HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during user detail retrieval: {str(e)}')
-            return response(FAILED, {ERROR: 'Error during user detail retrieval'}, status.HTTP_400_BAD_REQUEST)
-        
+            return response(FAILED, {ERROR: 'Error during user detail retrieval'}, status.HTTP_400_BAD_REQUEST)      
         
     @extend_schema(
     request=UserSerializer,  
@@ -449,8 +433,6 @@ class ResetPasswordRequestOTP(APIView):
         except Exception as e:
             logger.error(f'error during forgot password: {str(e)}')
             return response(FAILED, {ERROR: f'error during forgot password: {str(e)}'}, HTTP_400_BAD_REQUEST)
-
-
 
 class VerifyOTP(APIView):
     @extend_schema(
@@ -538,8 +520,7 @@ class ResetPassword(APIView):
 
             if not new_password or not confirm_password:
                 logger.error(f'New password and confirm password are required')
-                return response(FAILED, {ERROR: 'New password and confirm password are required'}, HTTP_400_BAD_REQUEST)
-            
+                return response(FAILED, {ERROR: 'New password and confirm password are required'}, HTTP_400_BAD_REQUEST)   
 
             if new_password != confirm_password:
                 logger.error(f'New password and confirm password do not match')
@@ -554,9 +535,6 @@ class ResetPassword(APIView):
         except Exception as e:
             logger.error(f'error during password reset: {str(e)}')
             return response(FAILED, {ERROR: f'error during password reset: {str(e)}'}, HTTP_400_BAD_REQUEST)
-
-
-
     
 class ReportPermissions(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -587,7 +565,6 @@ class ReportPermissions(APIView):
         Args:
             request (HttpRequest): User id and permissions(dictionary) to be updated.
 
-
         Returns:
             Response: Reurn a success message if the permissions are updated successfully, else returns an error message.
         """
@@ -602,7 +579,6 @@ class ReportPermissions(APIView):
         except Exception as e:
             logger.error(f'Error during report permission update: {str(e)}')
             return response(FAILED, {ERROR: f'Error during report permission update: {str(e)}'}, HTTP_400_BAD_REQUEST)
-
 
 class ReportLogs(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
@@ -637,7 +613,6 @@ class ReportLogs(APIView):
         except Exception as e:
             logger.error(f'Error during report logs retrieval: {str(e)}')
             return response(FAILED, {ERROR: f'Error during report logs retrieval: {str(e)}'}, HTTP_400_BAD_REQUEST)   
-
 
 class UserSearch(APIView):
     @extend_schema(
@@ -676,7 +651,6 @@ class UserSearch(APIView):
             logger.error(f'Error during user search: {str(e)}')
             return response(FAILED, {ERROR: f'Error during user search: {str(e)}'}, HTTP_400_BAD_REQUEST)
         
-
 class TeamNames(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -714,10 +688,7 @@ class TeamNames(APIView):
 
             return response(SUCCESS, {'error': 'Error during team names retrieval'}, HTTP_400_BAD_REQUEST)
 
-
-
 class ManagerList(APIView):
-
     """
     Return Manager Users.
     Args:
@@ -749,8 +720,7 @@ class ManagerList(APIView):
             return response(SUCCESS, manager_names, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during manager names retrieval: {str(e)}')
-            return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)
-            
+            return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)         
 
 class SalesmanList(APIView):
     """
@@ -813,4 +783,3 @@ class AdminDashboard(APIView):
         except Exception as e:
             logger.error(f'Error during render manager dashboard: {str(e)}')
             return response(SUCCESS, {'error': 'Error during render manager dashboard'},HTTP_400_BAD_REQUEST)
-            

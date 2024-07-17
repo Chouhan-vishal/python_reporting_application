@@ -1,13 +1,13 @@
 # myapp/sql_service.py
 import os
 import pyodbc
+from .report_queries import * 
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
 from users.models import UserActivityLog
+from datetime import datetime, timedelta
+from reporting_application.utils import *
 from rest_framework.permissions import BasePermission
 from rest_framework.exceptions import PermissionDenied
-from .report_queries import * 
-from reporting_application.utils import *
 
 load_dotenv()
 

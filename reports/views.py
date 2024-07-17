@@ -1,20 +1,21 @@
-from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from reports.services import report_services, report_queries, dashboard_queries
-from reports.services.report_services import HasReportPermission
-from rest_framework.views import APIView
-from users.services.utils import drf_schema, response
-from collections import defaultdict
-from reporting_application.constants import *
 import logging
 from users.models import User
+from collections import defaultdict
 from rest_framework import serializers
-from datetime import datetime, timedelta
-logger = logging.getLogger('reports')
 from reports.models import ProductGroup
+from datetime import datetime, timedelta
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from reporting_application.constants import *
 from users.services.utils import extend_schema
+from users.services.utils import drf_schema, response
+from rest_framework.permissions import IsAuthenticated
+from reports.services.report_services import HasReportPermission
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from reports.services import report_services, report_queries, dashboard_queries
+
+logger = logging.getLogger('reports')
 
 class SalesSummaryReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
@@ -1458,4 +1459,3 @@ def team_and_product_wise_report(request):
     cursor.close()
     conn.close()
     return Response({"Team wise product wise report": data_by_cluster})
-

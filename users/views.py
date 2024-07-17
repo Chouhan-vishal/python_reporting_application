@@ -339,6 +339,7 @@ class Profile(APIView):
                 "cr_utilization",
                 "customer_wise_outstanding",
                 "durastrong_tmt_product_sales",
+                "incentive_report",
                 "product_wise_month_sales",
                 "product_wise_sales_summary",
                 "review_product_wise",
@@ -350,7 +351,6 @@ class Profile(APIView):
                 "target_customer_sales",
                 "weekly_summary",
                 "welding_electrode",
-                "incentive_report"
             ]
             if not user.is_admin:
                 accessible_reports_list = []

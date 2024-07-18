@@ -21,10 +21,11 @@ class UserSerializer(serializers.ModelSerializer):
     created_at = serializers.DateTimeField(read_only=True)
     last_login = serializers.DateTimeField(read_only=True)
     permitted_reports = ReportPermissionSerializer(required=False)
+    emp_code = serializers.CharField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'emp_code', 'full_name', 'team_name', 'manager_name', 'password', 'is_active', 'is_admin', 'created_at', 'last_login',
+        fields = ['id', "emp_code", 'full_name', 'team_name', 'manager_name', 'password', 'is_active', 'is_admin', 'created_at', 'last_login',
                   'email', 'hierarchy', "role", 'phone_number', 'permitted_reports']
         read_only_fields = ['created_at', 'last_login']
 
@@ -49,7 +50,9 @@ class UserSerializer(serializers.ModelSerializer):
                 permitted_report_dict_data = {key: value for key, value in permissions_dict.items() if key in permitted_reports_obj.reports_permission.keys()}
                 permitted_reports_obj.reports_permission.update(permitted_report_dict_data)
                 permitted_reports_obj.save()
-                user.save()
+            emp_code = user.generate_emp_code(user.id)
+            user.emp_code = emp_code
+            user.save()
             return user
 
     def update(self, instance, validated_data):
@@ -64,7 +67,6 @@ class UserSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(f'hierarchy with name {hierarchy_name} does not exist ')
                 else:
                     instance.hierarchy = hierarchy_obj
-            instance.emp_code = validated_data.get('emp_code', instance.emp_code)
             instance.email = validated_data.get('email', instance.email)
             instance.full_name = validated_data.get('full_name', instance.full_name)
             instance.team_name = validated_data.get('team_name', instance.team_name)

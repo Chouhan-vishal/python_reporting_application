@@ -7,12 +7,11 @@ from datetime import datetime, timedelta
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from reporting_application.constants import *
-from users.services.utils import extend_schema
-from users.services.utils import drf_schema, response
 from rest_framework.permissions import IsAuthenticated
 from reports.services.report_services import HasReportPermission
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from users.services.utils import drf_schema, response, extend_schema
 from reports.services import report_services, report_queries, dashboard_queries
 
 logger = logging.getLogger('reports')
@@ -341,7 +340,7 @@ class CollectionReport(APIView):
 
             for row in data:
                 team_name, sales_person, total_collection = row
-                receipt_date = current_date.strftime('%Y-%m-%d')
+                receipt_date = current_date.strftime('%d-%b-%y')
                 
                 team_totals[team_name][receipt_date]["TotalCollection"] += total_collection
                 team_totals[team_name][receipt_date]["IndividualSales"][sales_person] = total_collection
@@ -1459,3 +1458,4 @@ def team_and_product_wise_report(request):
     cursor.close()
     conn.close()
     return Response({"Team wise product wise report": data_by_cluster})
+

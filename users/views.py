@@ -22,7 +22,7 @@ from reports.services import report_services, report_queries
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from .services.utils import generate_otp, send_otp_email, create_log
-from .models import User, OTP, TwoFactorAuthentication, UserActivityLog
+from .models import User, OTP, TwoFactorAuthentication, UserActivityLog, Reports
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_201_CREATED
 from .serializers import UserSerializer, UserActivityLogSerializer, TwoFactorAuthenticationSerializer,UserSearchSerializer
 from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer, OpenApiTypes, extend_schema_serializer
@@ -316,34 +316,14 @@ class Profile(APIView):
             user = request.user
             serializer = UserSerializer(user)
             data = serializer.data
-            report_order = [
-                "sales_collection_outstanding",
-                "all_customers_sales",
-                "block_customers_list",
-                "collection",
-                "cr_utilization",
-                "customer_wise_outstanding",
-                "durastrong_tmt_product_sales",
-                "incentive_report",
-                "product_wise_month_sales",
-                "product_wise_sales_summary",
-                "review_product_wise",
-                "review_salesman_wise",
-                "sales_register",
-                "sales_summary",
-                "salesman_and_product_wise",
-                "target_and_achieved",
-                "target_customer_sales",
-                "weekly_summary",
-                "welding_electrode",
-            ]
+            report_order = Reports.objects.all().order_by('index')
             if not user.is_admin:
                 accessible_reports_list = []
                 for report in report_order:
-                    if user.permitted_reports.reports_permission.get(report):
+                    if user.permitted_reports.reports_permission.get(report.keys):
                         accessible_reports_list.append({
-                            "path": f"/{report}".replace("_", "-"),
-                            "title": " ".join([str(k).capitalize() for k in str(report).split("_")])
+                            "path": f"/{report.keys}".replace("_", "-"),
+                            "title": " ".join([str(k).capitalize() for k in str(report.keys).split("_")])
                         })
                 if is_salesman(user):
                     accessible_reports_list.insert(0, {'title':"KPI Dashboard", "path":'/kpi-dashboard'})
@@ -352,7 +332,7 @@ class Profile(APIView):
             return response(SUCCESS, data, status.HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during user detail retrieval: {str(e)}')
-            return response(FAILED, {ERROR: 'Error during user detail retrieval'}, status.HTTP_400_BAD_REQUEST)      
+            return response(FAILED, {ERROR: 'Error during user detail retrieval'}, status.HTTP_400_BAD_REQUEST)         
         
     @extend_schema(
     request=UserSerializer,  

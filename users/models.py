@@ -210,3 +210,11 @@ class UserActivityLog(models.Model):
 
     def __str__(self):
         return self.log
+
+class Reports(models.Model):
+    reports_name = models.CharField(max_length=255, null=False)
+    index = models.IntegerField()
+    keys = models.CharField(max_length=255, null=False)
+    
+    def __str__(self):
+        return self.reports_name

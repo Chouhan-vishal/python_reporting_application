@@ -323,7 +323,7 @@ class Profile(APIView):
                     if user.permitted_reports.reports_permission.get(report.keys):
                         accessible_reports_list.append({
                             "path": f"/{report.keys}".replace("_", "-"),
-                            "title": " ".join([str(k).capitalize() for k in str(report.keys).split("_")])
+                            "title": report.reports_name
                         })
                 if is_salesman(user):
                     accessible_reports_list.insert(0, {'title':"KPI Dashboard", "path":'/kpi-dashboard'})
@@ -332,8 +332,8 @@ class Profile(APIView):
             return response(SUCCESS, data, status.HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during user detail retrieval: {str(e)}')
-            return response(FAILED, {ERROR: 'Error during user detail retrieval'}, status.HTTP_400_BAD_REQUEST)         
-        
+            return response(FAILED, {ERROR: 'Error during user detail retrieval'}, status.HTTP_400_BAD_REQUEST)
+
     @extend_schema(
     request=UserSerializer,  
     responses={HTTP_200_OK: UserSerializer},

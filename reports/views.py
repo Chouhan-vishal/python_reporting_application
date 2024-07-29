@@ -17,7 +17,7 @@ from reports.services import report_services, report_queries, dashboard_queries
 
 logger = logging.getLogger('reports')
 
-class SalesSummaryReport(APIView):
+class SalesSummary(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = 'Sales Summary Report'
     def fetch_sales_summary(self, start_date, end_date, pre_date,team_names):
@@ -101,8 +101,7 @@ class SalesSummaryReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-class SalesCollectionOutstandingReportView(APIView):
+class SalesCollectionOutstanding(APIView):
     REPORT_NAME = 'Sales Collection Outstanding Report'
     permission_classes = [IsAuthenticated, HasReportPermission]
     def process_sales_collections_outstanding_results(self,results):
@@ -243,7 +242,6 @@ class ProductWiseSalesSummary(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
 class WeeklySummary(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Weekly Summary Report"
@@ -325,7 +323,7 @@ class WeeklySummary(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class CollectionReport(APIView):
+class Collection(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Collection Report"
     def fetch_collection_report(self,user,team_names,start_date,end_date):
@@ -458,7 +456,7 @@ class CustomerWiseOutstanding(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class CrUtilizationReport(APIView):
+class CrUtilization(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "CR Utilization Report"
     @drf_schema(serializer_name="CRUtilizationReportSerializer",
@@ -498,8 +496,7 @@ class CrUtilizationReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-class SalesmanAndProductWiseReport(APIView):
+class SalesmanAndProductWise(APIView):
     REPORT_NAME = "Salesman and Product Wise Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
     def fetch_salesman_and_product_wise_report(self,user, team_names, salesman, month, year):
@@ -578,7 +575,7 @@ class SalesmanAndProductWiseReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class TargetAndAchievedReport(APIView):
+class TargetAndAchieved(APIView):
     REPORT_NAME = 'Target and Achieved Report'
     permission_classes = [IsAuthenticated, HasReportPermission]
 
@@ -680,7 +677,7 @@ class TargetAndAchievedReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class WeldingElectrodeProductSalesReports(APIView):
+class WeldingElectrodeProductSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Welding Electrode Product Sales Report"
 
@@ -763,7 +760,7 @@ class WeldingElectrodeProductSalesReports(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class DurastrongTmtProductSalesReport(APIView):
+class DurastrongTmtProductSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Durastrong TMT Product Sales Report"
     def fetch_durastrong_tmt_product_sales(self,start_date, end_date, team_names):
@@ -846,10 +843,8 @@ class DurastrongTmtProductSalesReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-
 # Response is very huge not able to compare
-class SalesRegisterReport(APIView):
+class SalesRegister(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Sales Register Report"
 
@@ -894,9 +889,8 @@ class SalesRegisterReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
 # Response is very huge not able to compare
-class BlockCustomersListReport(APIView):
+class BlockCustomersList(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Block Customers List Report"
     def fetch_and_process_block_customers_list_report(self, team_names):
@@ -926,10 +920,7 @@ class BlockCustomersListReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-
-
-class AllCustomersMomReport(APIView):
+class AllCustomersMom(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "All Customers Month on Month Report"
     def fetch_all_customers_mom_report(self,date_ranges,user, team_names, salesman):
@@ -1000,7 +991,7 @@ class AllCustomersMomReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-class ProductWiseMonthOnMonthReport(APIView):
+class ProductWiseMonthOnMonth(APIView):
     REPORT_NAME = "Product Wise Month On Month Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
 
@@ -1065,9 +1056,7 @@ class ProductWiseMonthOnMonthReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-
-class ReviewProductWiseReport(APIView):
+class ReviewProductWise(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Review Product Wise Report"
     def fetch_review_product_wise_report(self,month_count, team_names, salesman):
@@ -1134,10 +1123,7 @@ class ReviewProductWiseReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
-
-
-class TargetCustomerSalesReport(APIView):
+class TargetCustomerSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Target Customer Sales Report"
 
@@ -1205,7 +1191,6 @@ class TargetCustomerSalesReport(APIView):
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
-
 class ReviewSalesmanWiseData(APIView):
     REPORT_NAME = "Review SalesMan Wise Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
@@ -1232,7 +1217,6 @@ class ReviewSalesmanWiseData(APIView):
                 query2_data[month].extend(data2)
 
         return query1_data,query2_data
-    
 
     def process_review_salesman_wise_data(self,query1_data, query2_data):
         # Combine the data
@@ -1306,9 +1290,6 @@ class ReviewSalesmanWiseData(APIView):
         except Exception as e:
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
-
-
-
 
 class SalesmanKpiDashboard(APIView):
     REPORT_NAME = ""

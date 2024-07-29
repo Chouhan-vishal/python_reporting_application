@@ -138,7 +138,6 @@ def get_previous_month_and_year():
 
     return last_month_month, last_month_year
 
-
 def create_log(user, report_name):
     activity_log = UserActivityLog.objects.create(user=user, action_type= "viewed", object = "Report", log=f'Viewed {report_name}')
     activity_log.save()

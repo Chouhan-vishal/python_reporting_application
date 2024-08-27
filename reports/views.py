@@ -270,18 +270,27 @@ class WeeklySummary(APIView):
         })
         # Process query results
         for row in results:
-            weekly_target = row[8] if today_is_monday else row[10]
+            pending_taget = row[8]
+            if not pending_taget > 0:
+                pending_taget = 0
+
+            weekly_target = pending_taget if today_is_monday else row[10]
             team_name = row[3]
             salesman = row[4]
+            if not weekly_target > 0:
+                weekly_achieved = weekly_target - pending_taget
+            else:
+                weekly_achieved = 0
+
             sales_summary = {
                 'Salesman': salesman,
                 'Target Qty(MTs)': row[5],
                 'Achvd Qty(MTs)': row[6],
-                'Pending Target': row[8],
+                'Pending Target': pending_taget,
                 'Weekly Target': weekly_target,
                 'Collection Target': row[11],
                 'Collection Achived': row[12],
-                'Weekly Achved Qty(MTs)': row[13]
+                'Weekly Achved Qty(MTs)': weekly_achieved
             }
 
             # Update team summary values

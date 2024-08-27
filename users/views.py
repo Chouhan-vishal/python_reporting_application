@@ -235,7 +235,9 @@ class Users(APIView):
                 except:
                     logger.error(f'Error in creating log for User updation')
                 return Response(serializer.data, status=status.HTTP_200_OK)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            details = serializer.errors.get("email")[0]
+            errors = {"error":details.title()}
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
             logger.error(f'User with id {pk} does not exist')
             return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)

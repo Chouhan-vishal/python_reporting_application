@@ -53,7 +53,7 @@ class UserManager(BaseUserManager):
 
         return allowed_permissions
 
-    def create_user(self, emp_code, email, phone_number, is_active=True, team_name=None, manager_name = None,  hierarchy = None, full_name=None, password=None, is_admin=False, admin_user= None):
+    def create_user(self, email, phone_number, emp_code=None, is_active=True, team_name=None, manager_name = None,  hierarchy = None, full_name=None, password=None, is_admin=False, admin_user= None):
         """
         Creates and saves a User with the given email, emp_code, phone_number,
         full_name and password.
@@ -171,6 +171,11 @@ class User(AbstractBaseUser):
         "Is the user a member of staff?"
         # Simplest possible answer: All admins are staff
         return self.is_admin
+    
+    @staticmethod
+    def generate_emp_code(id):
+        new_emp_code = str(id).zfill(3)
+        return f'SLS{new_emp_code}'
 
 class OTP(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

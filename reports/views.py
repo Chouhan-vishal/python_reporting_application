@@ -263,10 +263,10 @@ class WeeklySummary(APIView):
             'Achvd Qty(MTs)': 0,
             'Pending Target': 0,
             'Weekly Target': 0,
+            'Weekly Achved Qty(MTs)': 0,
             'Collection Target': 0,
             'Collection Achived': 0,
-            'Salesmen': [],
-            'Weekly Achved Qty(MTs)': 0
+            'Salesmen': []
         })
         # Process query results
         for row in results:
@@ -276,10 +276,6 @@ class WeeklySummary(APIView):
             weekly_target = pending_taget if today_is_monday else row[10]
             team_name = row[3]
             salesman = row[4]
-            if not weekly_target > 0:
-                weekly_achieved = weekly_target - pending_taget
-            else:
-                weekly_achieved = 0
                 
             if is_month_last_week:
                 weekly_target = pending_taget
@@ -290,9 +286,9 @@ class WeeklySummary(APIView):
                 'Achvd Qty(MTs)': row[6],
                 'Pending Target': pending_taget,
                 'Weekly Target': weekly_target,
+                'Weekly Achved Qty(MTs)': row[13],
                 'Collection Target': row[11],
-                'Collection Achived': row[12],
-                'Weekly Achved Qty(MTs)': weekly_achieved
+                'Collection Achived': row[12]
             }
 
             # Update team summary values
@@ -315,7 +311,7 @@ class WeeklySummary(APIView):
             })
         return team_sales_list
 
-    @drf_schema(serializer_name="DateSerializer")
+
     def post(self,request):
         try:
             user = request.user

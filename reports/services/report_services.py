@@ -164,3 +164,28 @@ def get_last_n_months_names(n):
         current_date = current_date - timedelta(days=current_date.day)
     months = list(reversed(months))
     return months
+
+def is_month_last_week():
+    today = datetime.today()
+
+    # Get the current month and year
+    current_year = today.year
+    current_month = today.month
+
+    # Find the last day of the current month
+    if current_month == 12:
+        last_day = datetime(current_year, current_month, 31)
+    else:
+        next_month = current_month + 1
+        last_day = datetime(current_year, next_month, 1) - timedelta(days=1)
+
+    # Find the week number of the last day of the month
+    last_week_number = last_day.isocalendar()[1]
+
+    # Find the week number of today's date
+    current_week_number = today.isocalendar()[1]
+
+    # Check if the current week is the last week of the month
+    is_last_week = (current_week_number == last_week_number)
+
+    return is_last_week

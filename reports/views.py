@@ -10,7 +10,7 @@ from reporting_application.constants import *
 from users.services.utils import extend_schema
 from users.services.utils import drf_schema, response
 from rest_framework.permissions import IsAuthenticated
-from reports.services.report_services import HasReportPermission
+from reports.services.report_services import HasReportPermission, is_month_last_week
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from reports.services import report_services, report_queries, dashboard_queries
@@ -271,8 +271,7 @@ class WeeklySummary(APIView):
         # Process query results
         for row in results:
             pending_taget = row[8]
-            if not pending_taget > 0:
-                pending_taget = 0
+            pending_taget = max(pending_taget, 0)
 
             weekly_target = pending_taget if today_is_monday else row[10]
             team_name = row[3]
@@ -281,6 +280,9 @@ class WeeklySummary(APIView):
                 weekly_achieved = weekly_target - pending_taget
             else:
                 weekly_achieved = 0
+                
+            if is_month_last_week:
+                weekly_target = pending_taget
 
             sales_summary = {
                 'Salesman': salesman,

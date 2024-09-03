@@ -618,15 +618,10 @@ def salesman_and_product_wise_query(user, team_names, month, year, salesman=None
     """
     return sql_query
 
-def target_and_achieved_query(year, month, pre_day, user, team_names):
-
-    if is_salesman(user):
-        full_name = user.full_name
-        sub_query = f"WHERE (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
-    elif is_manager(user):
-        sub_query = f"WHERE ST.[Team Name] in ({team_names})"
-    else:
-        sub_query = ''
+def target_and_achieved_query(year, month, pre_day, salesman_names= None):
+    sub_query = ''
+    if salesman_names:
+        sub_query =  f"WHERE ST.[Sales Person] in ({salesman_names})"        
 
     sql_query = f"""
         WITH SalesTeamCTE AS (
@@ -728,9 +723,10 @@ def target_and_achieved_query(year, month, pre_day, user, team_names):
     return sql_query
 
 
-def welding_electrode_product_sales_query(start_date, end_date, team_names):
-    if team_names:
-        sub_query = f"WHERE [Team Name] in ({team_names})"
+def welding_electrode_product_sales_query(start_date, end_date, salesman_names = None):
+    sub_query = ''
+    if salesman_names:
+        sub_query = f"WHERE [Sales Person] in ({salesman_names})"
     sql_query = f"""
         WITH 
         --TargetCustomers

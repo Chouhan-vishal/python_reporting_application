@@ -586,10 +586,10 @@ class TargetAndAchieved(APIView):
     REPORT_NAME = 'Target and Achieved Report'
     # permission_classes = [IsAuthenticated, HasReportPermission]
 
-    def fetch_target_and_achieved_report(self,year,month,pre_date,user,team_names):
+    def fetch_target_and_achieved_report(self,year,month,pre_date,salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.target_and_achieved_query(month, year, pre_date, user, team_names)
+        sql_query = report_queries.target_and_achieved_query(month, year, pre_date, salesman_names)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
@@ -663,7 +663,7 @@ class TargetAndAchieved(APIView):
             team_name = request.data.get("team_name")
             user =  request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -672,12 +672,12 @@ class TargetAndAchieved(APIView):
             if not month or not year:
                 return Response({"error": "Please provide both month and year."}, status=400)
             pre_date = report_services.get_previous_date(str(datetime.today().date()))
-            results = self.fetch_target_and_achieved_report(month,year,pre_date,user,team_names)
+            results = self.fetch_target_and_achieved_report(month,year,pre_date,salesman_names)
 
             team_sales_summary_list = self.process_target_and_achieved_report(results)
         
 
-            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            # report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, team_sales_summary_list, HTTP_200_OK)
         
         except Exception as e:
@@ -685,13 +685,13 @@ class TargetAndAchieved(APIView):
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
 
 class WeldingElectrode(APIView):
-    permission_classes = [IsAuthenticated, HasReportPermission]
+    # permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Welding Electrode Product Sales Report"
 
-    def fetch_welding_electrode_product_sales(self,start_date, end_date, team_names):
+    def fetch_welding_electrode_product_sales(self,start_date, end_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.welding_electrode_product_sales_query(start_date, end_date, team_names)
+        sql_query = report_queries.welding_electrode_product_sales_query(start_date, end_date, salesman_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
         cursor.close()
@@ -747,7 +747,7 @@ class WeldingElectrode(APIView):
         try:
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                salesman_names = report_services.get_salesmans_for_user(user)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -757,10 +757,10 @@ class WeldingElectrode(APIView):
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
             month_count  = report_services.count_months(start_date, end_date)
-            results = self.fetch_welding_electrode_product_sales(start_date, end_date, team_names)
+            results = self.fetch_welding_electrode_product_sales(start_date, end_date, salesman_names)
             response_data = self.process_welding_electrode_product_sales(results, month_count)
 
-            report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
+            # report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, response_data, HTTP_200_OK)
         
         except Exception as e:

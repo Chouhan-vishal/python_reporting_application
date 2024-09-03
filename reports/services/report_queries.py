@@ -1,9 +1,9 @@
 from reporting_application.utils import *
 
-def sales_summary_query(start_date, end_date, pre_date, team_names= None):
+def sales_summary_query(start_date, end_date, pre_date, salesman_names= None):
     sub_query = ""
-    if team_names:
-        sub_query = f"WHERE ST.[Team Name] in ({team_names})"
+    if salesman_names:
+        sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
     sql_query = f"""
         WITH SalesTeamCTE AS (
             SELECT   
@@ -70,16 +70,12 @@ def sales_summary_query(start_date, end_date, pre_date, team_names= None):
     return sql_query
 
 
-def sales_collection_outstanding_summary(pre_date, user, team_names=None):
-    if is_salesman(user):
-        full_name = user.full_name
-        sub_query = f"""
-            WHERE ST.[Team Name] IS NOT NULL
-            AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}') )"""
-    elif is_manager(user):
-        sub_query = f"WHERE ST.[Team Name] in ({team_names})"
+def sales_collection_outstanding_summary(pre_date, salesman_names=None):
+    if salesman_names:
+        sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
     else:
         sub_query = 'WHERE ST.[Team Name] IS NOT NULL'
+        
     sql_query = f"""
         WITH SalesTeam AS (
             SELECT DISTINCT  
@@ -176,10 +172,10 @@ def sales_collection_outstanding_summary(pre_date, user, team_names=None):
     return sql_query
 
 
-def product_wise_sales_summary_query(start_date, end_date, pre_date, team_names = None):
+def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_names = None):
     sub_query = ""
-    if team_names:
-        sub_query = f"[Team Name] IN ({team_names})"
+    if salesman_names:
+        sub_query = f"[Sales Person] IN ({salesman_names})"
     sql_query = f"""
         WITH TargetCustomers AS (
         SELECT
@@ -243,15 +239,10 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, team_names 
     """
     return sql_query
 
-def weekly_report_query(user, team_names):
+def weekly_report_query(user, salesman_names):
 
-    if is_salesman(user):
-        full_name = user.full_name
-        sub_query = f"""
-            WHERE ST.[Team Name] IS NOT NULL
-            AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"""
-    elif is_manager(user):
-        sub_query = f"WHERE ST.[Team Name] in ({team_names})"
+    if salesman_names:
+        sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
     else:
         sub_query = ''
 
@@ -372,15 +363,11 @@ def weekly_report_query(user, team_names):
         """
     return sql_query
 
-def collection_report_by_date_range(date, user, team_names):
-
-    if is_salesman(user):
-        full_name = user.full_name
-        sub_query = f"AND LOWER(ST.[Sales Person]) = LOWER('{full_name}')"
-    elif is_manager(user):
-        sub_query = f"AND ST.[Team Name] in ({team_names})"
-    else:
-        sub_query = ''
+def collection_report_by_date_range(date, salesman_names = None):
+    
+    sub_query = ''
+    if salesman_names:
+        sub_query = f"AND ST.[Sales Person] in ({salesman_names})"        
 
     # Define the SQL query
     sql_query = f"""
@@ -398,16 +385,11 @@ def collection_report_by_date_range(date, user, team_names):
     return sql_query
 
 
-def customer_wise_outstanding_query(outstanding_value, user, team_names, salesman=None):
-    if is_salesman(user):
-        full_name = user.full_name
-        sub_query = f"AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
-    elif is_manager(user):
-        sub_query = f"AND ST.[Team Name] in ({team_names})"
-        if salesman:
-            sub_query += f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
-    else:
-        sub_query = ''
+def customer_wise_outstanding_query(outstanding_value, salesman_names):
+    sub_query = ''
+    if salesman_names:
+        sub_query = f"AND ST.[Sales Person] in ({salesman_names})"
+        
 
     sql_query = f"""
         SELECT  
@@ -441,14 +423,9 @@ def customer_wise_outstanding_query(outstanding_value, user, team_names, salesma
 
 
 
-def cr_utilization_report_query(user, team_names, salesman = None):
-    if is_salesman(user):
-        full_name = user.full_name
-        sub_query = f"AND (LOWER(t1.[Sales Person]) = LOWER('{full_name}'))"
-    elif is_manager(user):
-        sub_query = f"AND t1.[Team Name] in ({team_names})"
-        if salesman:
-            sub_query += f"AND (LOWER(t1.[Sales Person]) = LOWER('{salesman}'))"
+def cr_utilization_report_query(salesman_names = None):
+    if salesman_names:
+        sub_query = f"AND t1.[Sales Person] in ({salesman_names})"
     else:
         sub_query = ''
     sql_query = f"""
@@ -1304,6 +1281,24 @@ def get_team_names(manager_name = None):
     sql_query = f"""
         SELECT DISTINCT
             [Team Name]
+        FROM
+            [dbo].[tbl_HierarchyMapping] ST WITH (NOLOCK)
+        {sub_query}
+    """
+    return sql_query
+
+
+def get_salesman_names(emp_id = None, is_manager = False, team_name = None):
+    if is_manager:
+        sub_query = f" WHERE ST.[Reporting Manager EMP ID] = '{emp_id}'"
+        if team_name:
+            sub_query += f" AND ST.[Team Name] = '{team_name}'"
+    else:
+        sub_query = f" WHERE ST.[EMP ID] = '{emp_id}'"
+    
+    sql_query = f"""
+        SELECT DISTINCT
+            [Sales Person]
         FROM
             [dbo].[tbl_HierarchyMapping] ST WITH (NOLOCK)
         {sub_query}

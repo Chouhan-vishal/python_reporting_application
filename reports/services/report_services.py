@@ -110,6 +110,34 @@ def get_teamnames_for_user(user, team_name = None):
         return team_names
     except Exception as e:
         raise e
+    
+    
+def get_salesmans_for_user(user, team_name = None, salesman=None):
+    try:
+        conn = create_sql_server_connection()
+        cursor = conn.cursor()
+        emp_id = 'SLS0001'#user.emp_code
+        if True:
+            query = get_salesman_names(emp_id, True, team_name)
+        else:
+            query = get_salesman_names(emp_id, False)
+            
+        cursor.execute(query)
+        results = cursor.fetchall()
+        salesman_names = [row[0] for row in results]
+        if not salesman_names or len(salesman_names) == 0:
+            raise Exception("Invalid Employee ID or team name")
+        else:
+            if salesman and not salesman in salesman_names:
+                raise Exception("This salesman is not available under this manager")
+            elif salesman:
+                 salesman_names = [salesman]
+            salesman_names = ', '.join(f"'{salesman}'" for salesman in salesman_names)
+        cursor.close()
+        conn.close()
+        return salesman_names
+    except Exception as e:
+        raise e
 
 def count_months(start_date, end_date):
     """

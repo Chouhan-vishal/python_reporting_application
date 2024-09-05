@@ -468,7 +468,7 @@ def cr_utilization_report_query(salesman_names = None):
     return sql_query
 
 
-def salesman_and_product_wise_query(user, team_names, month, year, salesman=None):
+def salesman_and_product_wise_query(user, salesman_names, month, year=None):
     if is_salesman(user):
         achv_qty_clause=''
         target_filter_clause=''
@@ -483,7 +483,7 @@ def salesman_and_product_wise_query(user, team_names, month, year, salesman=None
         """
         target_filter_clause = ""
         voucher_filter_clause = ""
-        sub_query = f"AND (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
+        sub_query = f"AND ST.[Sales Person] in ({salesman_names})"
     elif is_manager(user):
         achv_qty_clause = """
             SUM(CASE
@@ -493,9 +493,7 @@ def salesman_and_product_wise_query(user, team_names, month, year, salesman=None
         """
         target_filter_clause = "WHERE [Item Category] <> 'Welding Electrodes'"
         voucher_filter_clause = " AND SV.[Item Details] <> 'Welding Electrodes' "
-        sub_query = f"AND ST.[Team Name] in ({team_names})"
-        if salesman:
-            sub_query += f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
+        sub_query = f"AND ST.[Sales Person] in ({salesman_names})"
     else:
         sub_query = ''
 

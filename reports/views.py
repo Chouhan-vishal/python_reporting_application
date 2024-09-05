@@ -506,10 +506,10 @@ class CrUtilization(APIView):
 class SalesmanAndProductWise(APIView):
     REPORT_NAME = "Salesman and Product Wise Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
-    def fetch_salesman_and_product_wise_report(self, salesman_names, month, year):
+    def fetch_salesman_and_product_wise_report(self, user, salesman_names, month, year):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.salesman_and_product_wise_query(salesman_names, month, year)
+        sql_query = report_queries.salesman_and_product_wise_query(user, salesman_names, month, year)
         cursor.execute(sql_query)
         # Fetching all the rows
         rows = cursor.fetchall()
@@ -573,7 +573,7 @@ class SalesmanAndProductWise(APIView):
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
-            rows = self.fetch_salesman_and_product_wise_report(salesman_names, month, year)
+            rows = self.fetch_salesman_and_product_wise_report(user, salesman_names, month, year)
             formatted_data = self.process_salesman_and_product_wise_report(rows)
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, formatted_data, HTTP_200_OK)

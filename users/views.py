@@ -64,6 +64,10 @@ class TwoFactorAuthenticationView(APIView):
             is_otp_valid = pyotp.TOTP(user_secret_key).verify(otp)
             if is_otp_valid:
                 token = AuthTokenService.get_token_for_user(user)
+                UserToken.objects.update_or_create(
+                    user=user,
+                    defaults={"token": token.get("access")}
+                )
                 logger.info(f"Access token generated successfully for user with id {user.id}")
                 return response(SUCCESS, token, HTTP_200_OK)
             else:
@@ -122,7 +126,7 @@ class Login(APIView):
                 token = AuthTokenService.get_token_for_user(user)
                 UserToken.objects.update_or_create(
                     user=user,
-                    defaults={"token": token}
+                    defaults={"token": token.get("access")}
                 )
                 logger.info(f'User with id {user.id} logged in  successfully')
                 return response(SUCCESS, token, HTTP_200_OK)  

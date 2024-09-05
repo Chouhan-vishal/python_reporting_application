@@ -918,8 +918,7 @@ def product_wise_month_on_month_query(start_date, end_date, salesman_names):
 def review_product_wise_query(month_count, salesman_names=None):
     sub_query, sub_query2, sub_query3 = ["", "", ""]
     if salesman_names:
-        sub_query = f"WHERE [Team Name] in ({salesman_names})"
-        sub_query2 = f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman_names}'))"
+        sub_query2 = f"AND ST.[Sales Person] in ({salesman_names})"
         sub_query3 = f"AND SV.[Sales Person] in ({salesman_names})"
     sql_query = f"""
         WITH TargetCustomers AS (
@@ -1002,7 +1001,6 @@ def review_product_wise_query(month_count, salesman_names=None):
             [Year],
             [Month]
         FROM CombinedSales
-        {sub_query}
         ORDER BY [Team Name], [Product cluster], [Year], [Month];
     """
     return sql_query

@@ -130,26 +130,15 @@ class Login(APIView):
             if not (email and password):
                 raise Exception(f"email and password are required") 
             user = authenticate(email = email, password=password)
-            if user:
-                # Create a new token
-                refresh = RefreshToken.for_user(user)
-                access_token = str(refresh.access_token)
-
-                # Store the token
-                UserToken.objects.update_or_create(
-                    user=user,
-                    defaults={"token": access_token}
-                )
-                
-                return Response({
-                    'refresh': str(refresh),
-                    'access': access_token,
-                })
                 
             if user is None:
                 return response(FAILED, {MESSAGE: "Invalid credentials"}, HTTP_400_BAD_REQUEST)
             if not user.is_admin:
                 token = AuthTokenService.get_token_for_user(user)
+                UserToken.objects.update_or_create(
+                    user=user,
+                    defaults={"token": token}
+                )
                 logger.info(f'User with id {user.id} logged in  successfully')
                 return response(SUCCESS, token, HTTP_200_OK)  
             else:

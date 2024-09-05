@@ -18,12 +18,13 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Value, TextField
 from django.utils.timezone import now as aware_utcnow
 from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.tokens import RefreshToken
 from reports.services import report_services, report_queries
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from .services.utils import generate_otp, send_otp_email, create_log
-from .models import User, OTP, TwoFactorAuthentication, UserActivityLog, Reports
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_201_CREATED
+from .models import User, OTP, TwoFactorAuthentication, UserActivityLog, Reports, UserToken
 from .serializers import UserSerializer, UserActivityLogSerializer, TwoFactorAuthenticationSerializer,UserSearchSerializer
 from drf_spectacular.utils import extend_schema, OpenApiParameter, inline_serializer, OpenApiTypes, extend_schema_serializer
 
@@ -54,6 +55,21 @@ class TwoFactorAuthenticationView(APIView):
             email = request.data.get('email')
             password = request.data.get('password')
             user = authenticate(email=email, password=password)
+            if user:
+                # Create a new token
+                refresh = RefreshToken.for_user(user)
+                access_token = str(refresh.access_token)
+
+                # Store the token
+                UserToken.objects.update_or_create(
+                    user=user,
+                    defaults={"token": access_token}
+                )
+                
+                return Response({
+                    'refresh': str(refresh),
+                    'access': access_token,
+                })
             user_mfa = TwoFactorAuthentication.objects.filter(user=user).first()
             if secret_key:
                 user_mfa.is_enabled = True
@@ -113,13 +129,29 @@ class Login(APIView):
             password = request.data.get('password')
             if not (email and password):
                 raise Exception(f"email and password are required") 
-            user = authenticate(email=email, password=password)
+            user = authenticate(email = email, password=password)
+            if user:
+                # Create a new token
+                refresh = RefreshToken.for_user(user)
+                access_token = str(refresh.access_token)
+
+                # Store the token
+                UserToken.objects.update_or_create(
+                    user=user,
+                    defaults={"token": access_token}
+                )
+                
+                return Response({
+                    'refresh': str(refresh),
+                    'access': access_token,
+                })
+                
             if user is None:
                 return response(FAILED, {MESSAGE: "Invalid credentials"}, HTTP_400_BAD_REQUEST)
             if not user.is_admin:
                 token = AuthTokenService.get_token_for_user(user)
                 logger.info(f'User with id {user.id} logged in  successfully')
-                return response(SUCCESS, token, HTTP_200_OK)
+                return response(SUCCESS, token, HTTP_200_OK)  
             else:
                 mfa = TwoFactorAuthentication.objects.filter(user=user).first()
                 mfa_enabled = mfa.is_enabled
@@ -154,6 +186,11 @@ class Logout(APIView):
         except Exception as e:
             logger.error(f'Error during user logout: {str(e)}')
             return response(FAILED, {ERROR: f'Error during user logout: {str(e)}'}, HTTP_400_BAD_REQUEST)
+    
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        UserToken.objects.filter(user=user).delete()
+        return Response({"detail": "Logged out successfully."}, status=status.HTTP_200_OK)
 
 class Users(APIView):
     permission_classes = [IsAdminUser, IsAuthenticated]

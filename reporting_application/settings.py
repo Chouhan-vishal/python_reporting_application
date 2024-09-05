@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
-    'django.contrib.messages',
+    'django.contrib.messages',  
     'django.contrib.staticfiles',
     'reporting_application',
     'rest_framework',
@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'reports',
     'drf_spectacular',
-    'corsheaders'
+    'corsheaders',
 ]
 APPEND_SLASH = False
 MIDDLEWARE = [
@@ -62,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'users.services.middleware.SingleDeviceMiddleware',
 ]
 
 ROOT_URLCONF = 'reporting_application.urls'

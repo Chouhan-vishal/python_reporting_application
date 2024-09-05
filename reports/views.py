@@ -20,11 +20,11 @@ logger = logging.getLogger('reports')
 class SalesSummary(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = 'Sales Summary Report'
-    def fetch_sales_summary(self, start_date, end_date, pre_date,team_names):
+    def fetch_sales_summary(self, start_date, end_date, pre_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         try:
             cursor = conn.cursor()
-            sql_query = report_queries.sales_summary_query(start_date, end_date, pre_date, team_names)
+            sql_query = report_queries.sales_summary_query(start_date, end_date, pre_date, salesman_names)
             # Assuming you execute the query with the provided start_date and end_date values
             cursor.execute(sql_query)
             results = cursor.fetchall()
@@ -80,7 +80,7 @@ class SalesSummary(APIView):
             end_date = request.data.get("end_date", None)
 
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                salesman_names = report_services.get_salesmans_for_user(user)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             
@@ -90,7 +90,7 @@ class SalesSummary(APIView):
             
             month_count  = report_services.count_months(start_date, end_date)            
             pre_date = report_services.get_previous_date(end_date)
-            results = self.fetch_sales_summary(start_date, end_date, pre_date, team_names)
+            results = self.fetch_sales_summary(start_date, end_date, pre_date, salesman_names)
             team_sales_summary = self.process_sales_results(results, month_count)
             response_data = self.format_response_data(team_sales_summary)
             
@@ -154,10 +154,10 @@ class SalesCollectionOutstanding(APIView):
             }
             for team_name, summary in team_sales_summary.items()
         ]
-    def fetch_sales_collection_outstanding_summary(self,pre_date, user, team_names):
+    def fetch_sales_collection_outstanding_summary(self,pre_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.sales_collection_outstanding_summary(pre_date, user, team_names)
+        query = report_queries.sales_collection_outstanding_summary(pre_date, salesman_names)
         cursor.execute(query)
         results = cursor.fetchall()
         cursor.close()
@@ -169,7 +169,7 @@ class SalesCollectionOutstanding(APIView):
         try:
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                salesman_names = report_services.get_salesmans_for_user(user)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -179,7 +179,7 @@ class SalesCollectionOutstanding(APIView):
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
         
             pre_date = report_services.get_previous_date(end_date)
-            results = self.fetch_sales_collection_outstanding_summary(pre_date, user, team_names)
+            results = self.fetch_sales_collection_outstanding_summary(pre_date, salesman_names)
             team_sales_summary = self.process_sales_collections_outstanding_results(results)
             result = self.format_sales_collection_outstanding(team_sales_summary)
 
@@ -192,10 +192,10 @@ class SalesCollectionOutstanding(APIView):
 class ProductWiseSalesSummary(APIView):
     REPORT_NAME = "Product Wise Sales Summary"
     permission_classes = [IsAuthenticated, HasReportPermission]
-    def fetch_product_wise_sales_summary(self,start_date, end_date, pre_date, team_names):
+    def fetch_product_wise_sales_summary(self,start_date, end_date, pre_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.product_wise_sales_summary_query(start_date, end_date, pre_date, team_names)
+        query = report_queries.product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_names)
         cursor.execute(query)
         results = cursor.fetchall()
         columns = [col[0] for col in cursor.description]
@@ -209,7 +209,7 @@ class ProductWiseSalesSummary(APIView):
         try:
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                salesman_names = report_services.get_salesmans_for_user(user)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             
@@ -222,7 +222,7 @@ class ProductWiseSalesSummary(APIView):
             month_count  = report_services.count_months(start_date, end_date)
 
             pre_date = report_services.get_previous_date(end_date)
-            results,columns = self.fetch_product_wise_sales_summary(start_date, end_date, pre_date, team_names)
+            results,columns = self.fetch_product_wise_sales_summary(start_date, end_date, pre_date, salesman_names)
 
             data = [
                 {
@@ -245,10 +245,10 @@ class ProductWiseSalesSummary(APIView):
 class WeeklySummary(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Weekly Summary Report"
-    def fetch_weekly_summary(self,user,team_names):
+    def fetch_weekly_summary(self,user, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.weekly_report_query(user, team_names)
+        query = report_queries.weekly_report_query(user, salesman_names)
         cursor.execute(query)
         results = cursor.fetchall()
         cursor.close()
@@ -316,13 +316,13 @@ class WeeklySummary(APIView):
         try:
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                salesman_names = report_services.get_salesmans_for_user(user)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
             today_is_monday = datetime.today().weekday() == 0
-            results  = self.fetch_weekly_summary(user,team_names)
-            team_sales_list = self.process_weekly_summary_results(results,today_is_monday)
+            results  = self.fetch_weekly_summary(user, salesman_names)
+            team_sales_list = self.process_weekly_summary_results(results, today_is_monday)
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, team_sales_list, HTTP_200_OK)
@@ -333,14 +333,14 @@ class WeeklySummary(APIView):
 class Collection(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Collection Report"
-    def fetch_collection_report(self,user,team_names,start_date,end_date):
+    def fetch_collection_report(self,salesman_names,start_date,end_date):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         team_totals = defaultdict(lambda: defaultdict(lambda: {"TotalCollection": 0, "IndividualSales": {}}))
         
         current_date = start_date
         while current_date <= end_date:
-            query = report_queries.collection_report_by_date_range(current_date, user, team_names)
+            query = report_queries.collection_report_by_date_range(current_date, salesman_names)
             cursor.execute(query)
             data = cursor.fetchall()
 
@@ -376,7 +376,7 @@ class Collection(APIView):
         try:
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                salesman_names = report_services.get_salesmans_for_user(user)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -389,7 +389,7 @@ class Collection(APIView):
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
             
-            team_totals = self.fetch_collection_report(user,team_names,start_date,end_date)
+            team_totals = self.fetch_collection_report( salesman_names,start_date,end_date)
                 
             result = self.process_team_totals(team_totals)
             
@@ -420,10 +420,10 @@ class CustomerWiseOutstanding(APIView):
 
         return total_outstanding_sum,formatted_data
     
-    def fetch_customer_wise_outstanding(self,outstanding_value, user, team_names, salesman):
+    def fetch_customer_wise_outstanding(self,outstanding_value, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, user, team_names, salesman)
+        sql_query = report_queries.customer_wise_outstanding_query(outstanding_value, salesman_names)
         cursor.execute(sql_query)
 
         # Fetch data
@@ -445,7 +445,7 @@ class CustomerWiseOutstanding(APIView):
             salesman = request.data.get("salesman")
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name, salesman)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -453,7 +453,7 @@ class CustomerWiseOutstanding(APIView):
             outstanding_days = [0, 25, 45, 90]
             if outstanding_value not in outstanding_days:
                 return Response({"error": "Please provide valid outstanding day value"}, status=400)
-            data = self.fetch_customer_wise_outstanding(outstanding_value, user, team_names, salesman)
+            data = self.fetch_customer_wise_outstanding(outstanding_value, salesman_names)
             total_outstanding_sum,formatted_data = self.process_customer_wise_outstanding(data)
 
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
@@ -478,13 +478,13 @@ class CrUtilization(APIView):
             user = request.user
             
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name, salesman)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
             conn = report_services.create_sql_server_connection()
             cursor = conn.cursor()
-            sql_query = report_queries.cr_utilization_report_query(user, team_names, salesman)
+            sql_query = report_queries.cr_utilization_report_query(salesman_names)
             cursor.execute(sql_query)
         
             # Fetch data
@@ -506,10 +506,10 @@ class CrUtilization(APIView):
 class SalesmanAndProductWise(APIView):
     REPORT_NAME = "Salesman and Product Wise Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
-    def fetch_salesman_and_product_wise_report(self,user, team_names, salesman, month, year):
+    def fetch_salesman_and_product_wise_report(self, salesman_names, month, year):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.salesman_and_product_wise_query(user, team_names, month, year, salesman)
+        sql_query = report_queries.salesman_and_product_wise_query(salesman_names, month, year)
         cursor.execute(sql_query)
         # Fetching all the rows
         rows = cursor.fetchall()
@@ -569,11 +569,11 @@ class SalesmanAndProductWise(APIView):
                 return Response({"error": "Please provide both year and month."}, status=400)
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name, salesman)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
-            rows = self.fetch_salesman_and_product_wise_report(user, team_names, salesman, month, year)
+            rows = self.fetch_salesman_and_product_wise_report(salesman_names, month, year)
             formatted_data = self.process_salesman_and_product_wise_report(rows)
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, formatted_data, HTTP_200_OK)
@@ -586,10 +586,10 @@ class TargetAndAchieved(APIView):
     REPORT_NAME = 'Target and Achieved Report'
     permission_classes = [IsAuthenticated, HasReportPermission]
 
-    def fetch_target_and_achieved_report(self,year,month,pre_date,user,team_names):
+    def fetch_target_and_achieved_report(self,year,month,pre_date,salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.target_and_achieved_query(month, year, pre_date, user, team_names)
+        sql_query = report_queries.target_and_achieved_query(month, year, pre_date, salesman_names)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
@@ -663,7 +663,7 @@ class TargetAndAchieved(APIView):
             team_name = request.data.get("team_name")
             user =  request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -672,7 +672,7 @@ class TargetAndAchieved(APIView):
             if not month or not year:
                 return Response({"error": "Please provide both month and year."}, status=400)
             pre_date = report_services.get_previous_date(str(datetime.today().date()))
-            results = self.fetch_target_and_achieved_report(month,year,pre_date,user,team_names)
+            results = self.fetch_target_and_achieved_report(month,year,pre_date,salesman_names)
 
             team_sales_summary_list = self.process_target_and_achieved_report(results)
         
@@ -688,10 +688,10 @@ class WeldingElectrode(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Welding Electrode Product Sales Report"
 
-    def fetch_welding_electrode_product_sales(self,start_date, end_date, team_names):
+    def fetch_welding_electrode_product_sales(self,start_date, end_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.welding_electrode_product_sales_query(start_date, end_date, team_names)
+        sql_query = report_queries.welding_electrode_product_sales_query(start_date, end_date, salesman_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
         cursor.close()
@@ -747,7 +747,7 @@ class WeldingElectrode(APIView):
         try:
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                salesman_names = report_services.get_salesmans_for_user(user)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -757,7 +757,7 @@ class WeldingElectrode(APIView):
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
             month_count  = report_services.count_months(start_date, end_date)
-            results = self.fetch_welding_electrode_product_sales(start_date, end_date, team_names)
+            results = self.fetch_welding_electrode_product_sales(start_date, end_date, salesman_names)
             response_data = self.process_welding_electrode_product_sales(results, month_count)
 
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
@@ -770,10 +770,10 @@ class WeldingElectrode(APIView):
 class DurastrongTMTProductSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Durastrong TMT Product Sales Report"
-    def fetch_durastrong_tmt_product_sales(self,start_date, end_date, team_names):
+    def fetch_durastrong_tmt_product_sales(self,start_date, end_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.durastrong_tmt_product_sales_query(start_date, end_date, team_names)
+        sql_query = report_queries.durastrong_tmt_product_sales_query(start_date, end_date, salesman_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
         cursor.close()
@@ -829,7 +829,7 @@ class DurastrongTMTProductSales(APIView):
         try:
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                salesman_names = report_services.get_salesmans_for_user(user)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -839,7 +839,7 @@ class DurastrongTMTProductSales(APIView):
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
             month_count  = report_services.count_months(start_date, end_date)
-            results = self.fetch_durastrong_tmt_product_sales(start_date, end_date, team_names)
+            results = self.fetch_durastrong_tmt_product_sales(start_date, end_date, salesman_names)
 
             response_data = self.process_durastrong_tmt_product_sales(results, month_count)
             
@@ -855,10 +855,10 @@ class SalesRegister(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Sales Register Report"
 
-    def fetch_and_process_sales_register_report(self,start_date,end_date, team_names):
+    def fetch_and_process_sales_register_report(self,start_date,end_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.sales_register_query(start_date, end_date, team_names)
+        sql_query = report_queries.sales_register_query(start_date, end_date, salesman_names)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
@@ -878,7 +878,7 @@ class SalesRegister(APIView):
             user = request.user
             team_name = request.data.get("team_name")
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             start_date = request.data.get("start_date", None)
@@ -887,7 +887,7 @@ class SalesRegister(APIView):
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
             # Both fetch and process the data
-            data = self.fetch_and_process_sales_register_report(start_date,end_date, team_names)
+            data = self.fetch_and_process_sales_register_report(start_date,end_date, salesman_names)
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, data, HTTP_200_OK)
@@ -900,11 +900,11 @@ class SalesRegister(APIView):
 class BlockCustomersList(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Block Customers List Report"
-    def fetch_and_process_block_customers_list_report(self, team_names):
+    def fetch_and_process_block_customers_list_report(self, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         # Assuming you execute the query with the provided start_date and end_date values
-        sql_query = report_queries.block_customers_list_query(team_names)
+        sql_query = report_queries.block_customers_list_query(salesman_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
         data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
@@ -916,10 +916,10 @@ class BlockCustomersList(APIView):
         try:
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user)
+                salesman_names = report_services.get_salesmans_for_user(user)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
-            data = self.fetch_and_process_block_customers_list_report(team_names)
+            data = self.fetch_and_process_block_customers_list_report(salesman_names)
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, data, HTTP_200_OK)
         
@@ -930,7 +930,7 @@ class BlockCustomersList(APIView):
 class AllCustomersSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "All Customers Month on Month Report"
-    def fetch_all_customers_mom_report(self,date_ranges,user, team_names, salesman):
+    def fetch_all_customers_mom_report(self,date_ranges, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         # list to hold the aggregated data
@@ -938,7 +938,7 @@ class AllCustomersSales(APIView):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'], user, team_names, salesman)
+            sql_query = report_queries.all_customers_sales_query(item['start_date'], item['end_date'], salesman_names)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             month = item['month']
@@ -976,10 +976,9 @@ class AllCustomersSales(APIView):
     def post(self,request):
         try:
             team_name = request.data.get("team_name")
-            salesman = request.data.get("salesman")
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             
@@ -988,7 +987,7 @@ class AllCustomersSales(APIView):
                 return Response({"error": "Please provide both Month count."}, status=400)
             date_ranges = report_services.get_monthly_date_ranges(month_count)
 
-            result = self.fetch_all_customers_mom_report(date_ranges,user, team_names, salesman)
+            result = self.fetch_all_customers_mom_report(date_ranges, salesman_names)
 
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
@@ -1012,7 +1011,7 @@ class ProductWiseMonthSales(APIView):
             })
         return final_result
     
-    def fetch_product_wise_month_report(self,team_names,month_count, salesman, user):
+    def fetch_product_wise_month_report(self,salesman_names,month_count):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         if not month_count:
@@ -1022,7 +1021,7 @@ class ProductWiseMonthSales(APIView):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.product_wise_month_on_month_query(item['start_date'], item['end_date'], user, team_names, salesman)
+            sql_query = report_queries.product_wise_month_on_month_query(item['start_date'], item['end_date'], salesman_names)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             data = [dict(zip([column[0] for column in cursor.description], row)) for row in results]
@@ -1047,13 +1046,12 @@ class ProductWiseMonthSales(APIView):
         try:
             user = request.user
             team_name = request.data.get("team_name")
-            salesman = request.data.get("salesman")
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             month_count = request.data.get("month_count", None)
-            intermediate_result = self.fetch_product_wise_month_report(team_names,month_count, salesman, user)
+            intermediate_result = self.fetch_product_wise_month_report(salesman_names,month_count)
 
             final_result = self.process_product_wise_month_report(intermediate_result)
             
@@ -1066,10 +1064,10 @@ class ProductWiseMonthSales(APIView):
 class ReviewProductWise(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Review Product Wise Report"
-    def fetch_review_product_wise_report(self,month_count, team_names, salesman):
+    def fetch_review_product_wise_report(self,month_count, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()        
-        sql_query = report_queries.review_product_wise_query(month_count, team_names, salesman)
+        sql_query = report_queries.review_product_wise_query(month_count, salesman_names)
         cursor.execute(sql_query)
         results = cursor.fetchall()
 
@@ -1102,7 +1100,7 @@ class ReviewProductWise(APIView):
     @drf_schema(serializer_name="ReviewProductWiseReportSerializer",
                 serializer_fields={
                     "team_name": serializers.CharField(),
-                    "salesman": serializers.CharField(),
+                    "salesman_names": serializers.CharField(),
                     "month_count": serializers.IntegerField()
                 })
     def post(self,request):
@@ -1111,7 +1109,7 @@ class ReviewProductWise(APIView):
             salesman = request.data.get("salesman")
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user,team_name)
+                salesman_names = report_services.get_salesmans_for_user(user,team_name, salesman)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             
@@ -1120,7 +1118,7 @@ class ReviewProductWise(APIView):
             if not month_count:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
 
-            data = self.fetch_review_product_wise_report(month_count, team_names, salesman)
+            data = self.fetch_review_product_wise_report(month_count, salesman_names)
             result = self.process_review_product_wise_report(data, month_count)
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
@@ -1134,7 +1132,7 @@ class TargetCustomerSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Target Customer Sales Report"
 
-    def fetch_and_process_target_customer_sales(self,month_count, user, team_names, salesman):
+    def fetch_and_process_target_customer_sales(self,month_count, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         date_ranges = report_services.get_monthly_date_ranges(month_count)
@@ -1144,7 +1142,7 @@ class TargetCustomerSales(APIView):
 
         for _, item in enumerate(date_ranges):
             # Assuming you execute the query with the provided start_date and end_date values
-            sql_query = report_queries.target_customers_sales_query(item['start_date'], item['end_date'], user, team_names, salesman)
+            sql_query = report_queries.target_customers_sales_query(item['start_date'], item['end_date'], salesman_names)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             month = item['month']
@@ -1181,15 +1179,15 @@ class TargetCustomerSales(APIView):
             salesman = request.data.get("salesman")
             user = request.user
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name, salesman)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             
             month_count = request.data.get("month_count", None)
             if not month_count:
-                return Response({"error": "Please provide both start_date and end_date."}, status=400)
+                return Response({"error": "Please provide month_count"}, status=400)
 
-            aggregated_result  = self.fetch_and_process_target_customer_sales(month_count, user, team_names, salesman)
+            aggregated_result  = self.fetch_and_process_target_customer_sales(month_count, salesman_names)
             # Convert aggregated result to the desired format
             final_result = list(aggregated_result.values())
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
@@ -1201,11 +1199,11 @@ class TargetCustomerSales(APIView):
 class ReviewSalesmanWise(APIView):
     REPORT_NAME = "Review SalesMan Wise Report"
     permission_classes = [IsAuthenticated, HasReportPermission]
-    def fetch_review_salesman_wise_data(self,month_count,team_names, salesman):
+    def fetch_review_salesman_wise_data(self,month_count,salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
         # Assuming you execute the query with the provided start_date and end_date values
-        sql_query1 = report_queries.review_salesman_wise_query1(team_names, salesman)
+        sql_query1 = report_queries.review_salesman_wise_query1(salesman_names)
         cursor.execute(sql_query1)
         results1 = cursor.fetchall()
         query1_data = [dict(zip([column[0] for column in cursor.description], row)) for row in results1]
@@ -1216,7 +1214,7 @@ class ReviewSalesmanWise(APIView):
         query2_data = defaultdict(list)
 
         for item in date_ranges:
-                sql_query2 = report_queries.review_salesman_wise_query2(item['start_date'], item['end_date'], team_names)
+                sql_query2 = report_queries.review_salesman_wise_query2(item['start_date'], item['end_date'], salesman_names)
                 cursor.execute(sql_query2)
                 results2 = cursor.fetchall()
                 data2 = [dict(zip([column[0] for column in cursor.description], row)) for row in results2]
@@ -1279,7 +1277,7 @@ class ReviewSalesmanWise(APIView):
             team_name = request.data.get("team_name")
             salesman = request.data.get("salesman")
             try:
-                team_names = report_services.get_teamnames_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name, salesman)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -1287,7 +1285,7 @@ class ReviewSalesmanWise(APIView):
             if not month_count:
                 return Response({"error": "Please provide month_count."}, status=HTTP_400_BAD_REQUEST)
             
-            query1_data, query2_data = self.fetch_review_salesman_wise_data(month_count,team_names, salesman)
+            query1_data, query2_data = self.fetch_review_salesman_wise_data(month_count,salesman_names)
 
             combined_data = self.process_review_salesman_wise_data(query1_data, query2_data)
         

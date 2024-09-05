@@ -223,3 +223,11 @@ class Reports(models.Model):
     
     def __str__(self):
         return self.reports_name
+
+class UserToken(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    token = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.token

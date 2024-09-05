@@ -55,21 +55,6 @@ class TwoFactorAuthenticationView(APIView):
             email = request.data.get('email')
             password = request.data.get('password')
             user = authenticate(email=email, password=password)
-            if user:
-                # Create a new token
-                refresh = RefreshToken.for_user(user)
-                access_token = str(refresh.access_token)
-
-                # Store the token
-                UserToken.objects.update_or_create(
-                    user=user,
-                    defaults={"token": access_token}
-                )
-                
-                return Response({
-                    'refresh': str(refresh),
-                    'access': access_token,
-                })
             user_mfa = TwoFactorAuthentication.objects.filter(user=user).first()
             if secret_key:
                 user_mfa.is_enabled = True

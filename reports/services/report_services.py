@@ -116,8 +116,8 @@ def get_salesmans_for_user(user, team_name = None, salesman=None):
     try:
         conn = create_sql_server_connection()
         cursor = conn.cursor()
-        emp_id = 'SLS0001'#user.emp_code
-        if True:
+        emp_id = user.emp_code
+        if is_manager(user):
             query = get_salesman_names(emp_id, True, team_name)
         else:
             query = get_salesman_names(emp_id, False)

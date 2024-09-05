@@ -71,10 +71,9 @@ def sales_summary_query(start_date, end_date, pre_date, salesman_names= None):
 
 
 def sales_collection_outstanding_summary(pre_date, salesman_names=None):
+    sub_query = ''
     if salesman_names:
         sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
-    else:
-        sub_query = 'WHERE ST.[Team Name] IS NOT NULL'
         
     sql_query = f"""
         WITH SalesTeam AS (
@@ -240,11 +239,10 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
     return sql_query
 
 def weekly_report_query(user, salesman_names):
-
+    
+    sub_query = ''
     if salesman_names:
         sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
-    else:
-        sub_query = ''
 
     sql_query = f"""
         DECLARE @WeekStartDayMonday DATE, @WeekEndDaySaturday DATE;
@@ -422,12 +420,11 @@ def customer_wise_outstanding_query(outstanding_value, salesman_names):
     return sql_query
 
 
-
 def cr_utilization_report_query(salesman_names = None):
+    sub_query = ''
     if salesman_names:
         sub_query = f"AND t1.[Sales Person] in ({salesman_names})"
-    else:
-        sub_query = ''
+    
     sql_query = f"""
         SELECT 
             t1."Team Name", 
@@ -468,72 +465,6 @@ def cr_utilization_report_query(salesman_names = None):
             t1."Team Name", t1."Sales Person", t1."Customer Name", t1."Customer ID";
 
             """
-    return sql_query
-
-
-def team_and_product_wise_query(start_date, end_date, pre_date):
-    sql_query = f"""
-        WITH SalesTeamCTE AS (
-            SELECT   
-                ST.[Team Name],   
-                [Sales Person], 
-                CAST(GETDATE() AS DATE) AS [Date],
-                CAST(0 AS DECIMAL(10, 2)) AS [Target Qty],  
-                CAST(0 AS DECIMAL(10, 2)) AS [Achv Qty],
-                CAST(GETDATE() - 2 AS DATE) AS [Previous Date]
-            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
-        ),
-        TargetCustomers AS (
-            SELECT DISTINCT  
-                SV.[Team Name],    
-                [Sales Person],
-                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10, 2))), 2) AS [Target Qty], 
-                SV.[Date] 
-            FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)
-            WHERE [Item Category] <> 'Welding Electrodes'
-            GROUP BY 
-                SV.[Team Name],
-                [Sales Person],
-                SV.[Date]
-        ),
-        Sales AS (
-            SELECT      
-                ST.[Team Name],   
-                [Sales Person],
-                SUM([Qty(MTs)]) AS [Achv Qty], 
-                ST.[Previous Date]
-            FROM SalesTeamCTE ST
-            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
-                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
-                AND SV.[Item Details] <> 'Welding Electrodes'
-                AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
-            GROUP BY 
-                ST.[Team Name],    
-                [Sales Person],
-                ST.[Previous Date]
-        ),
-        PreviousDateQty AS (
-        SELECT
-            ST.[Team Name],
-            [Sales Person],
-            SUM([Qty(MTs)]) AS [Achv Qty]
-        FROM [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
-        INNER JOIN [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
-            ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
-        WHERE SV.[Item Details] <> 'Welding Electrodes'
-        AND CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'
-        GROUP BY ST.[Team Name], [Sales Person]
-        )
-        SELECT DISTINCT 
-            ST.[Team Name],
-            ST.[Sales Person],
-            ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],  
-            ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
-            ISNULL(ROUND(CAST(ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT) / NULLIF(CAST(ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
-            ISNULL((SELECT [Achv Qty] FROM PreviousDateQty WHERE PreviousDateQty.[Team Name] = ST.[Team Name] AND PreviousDateQty.[Sales Person] = ST.[Sales Person]), 0) AS [Previous Date Qty]
-        FROM SalesTeamCTE ST
-        ORDER BY ST.[Team Name], ST.[Sales Person];
-    """
     return sql_query
 
 
@@ -816,9 +747,10 @@ def welding_electrode_product_sales_query(start_date, end_date, salesman_names =
     """
     return sql_query
 
-def durastrong_tmt_product_sales_query(start_date, end_date, team_names):
-    if team_names:
-        sub_query = f"WHERE [Team Name] in ({team_names})"
+def durastrong_tmt_product_sales_query(start_date, end_date, salesman_names = None):
+    sub_query = ''
+    if salesman_names:
+        sub_query = f"WHERE [Sales Person] in ({salesman_names})"
     sql_query = f"""
         WITH TempSalesTeam AS (
             SELECT DISTINCT  
@@ -888,9 +820,10 @@ def durastrong_tmt_product_sales_query(start_date, end_date, team_names):
     """
     return sql_query
 
-def sales_register_query(start_date, end_date, team_names = None):
-    if team_names:
-        sub_query = f"AND t.[Team Name] IN  ({team_names})"
+def sales_register_query(start_date, end_date, salesman_names = None):
+    sub_query = ''
+    if salesman_names:
+        sub_query = f"AND t.[Sales Person] IN  ({salesman_names})"
     sql_query = f"""
         SELECT
             v.*,
@@ -905,9 +838,10 @@ def sales_register_query(start_date, end_date, team_names = None):
     """
     return sql_query
 
-def block_customers_list_query(team_names = None):
-    if team_names:
-        sub_query = f"AND t.[Team Name] IN ({team_names})"
+def block_customers_list_query(salesman_names = None):
+    sub_query = ''
+    if salesman_names:
+        sub_query = f"AND c.[Sales Person] IN ({salesman_names})"
     sql_query = f"""
         SELECT
             c.*,
@@ -922,16 +856,10 @@ def block_customers_list_query(team_names = None):
     """
     return sql_query
 
-def all_customers_sales_query(start_date, end_date, user, team_names, salesman = None):
-    if is_salesman(user):
-        full_name = user.full_name
-        sub_query = f"AND (LOWER(t.[Sales Person]) = LOWER('{full_name}'))"
-    elif is_manager(user):
-        sub_query = f"AND t.[Team Name] in ({team_names})"
-        if salesman:
-            sub_query += f"AND (LOWER(t.[Sales Person]) = LOWER('{salesman}'))"
-    else:
-        sub_query = ''
+def all_customers_sales_query(start_date, end_date, salesman_names = None):
+    sub_query = ''
+    if salesman_names:
+        sub_query = f"AND v.[Sales Person -2] in ({salesman_names})"
 
     sql_query = f"""
         SELECT 
@@ -957,16 +885,12 @@ def all_customers_sales_query(start_date, end_date, user, team_names, salesman =
     return sql_query
 
 
-def product_wise_month_on_month_query(start_date, end_date, user, team_names, salesman=None):
-    if is_salesman(user):
-        full_name = user.full_name
-        sub_query = f"AND ST.[Sales Person] = '{full_name}'"
-    elif is_manager(user):
-        sub_query = f"AND ST.[Team Name] in ({team_names})"
-        if salesman:
-            sub_query += f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
-    else:
-        sub_query = ''
+def product_wise_month_on_month_query(start_date, end_date, salesman_names):
+    
+    sub_query = ''
+    if salesman_names:
+        sub_query = f'AND ST.[Sales Person] in ({salesman_names})'
+        
     sql_query = f"""
         WITH Sales AS (
         SELECT          
@@ -993,13 +917,12 @@ def product_wise_month_on_month_query(start_date, end_date, user, team_names, sa
     """
     return sql_query
 
-def review_product_wise_query(month_count, team_names, salesman=None):
+def review_product_wise_query(month_count, salesman_names=None):
     sub_query, sub_query2, sub_query3 = ["", "", ""]
-    if team_names:
-        sub_query = f"WHERE [Team Name] in ({team_names})"
-        if salesman:
-            sub_query2 = f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
-            sub_query3 = f"AND (LOWER(SV.[Sales Person]) = LOWER('{salesman}'))"
+    if salesman_names:
+        sub_query = f"WHERE [Team Name] in ({salesman_names})"
+        sub_query2 = f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman_names}'))"
+        sub_query3 = f"AND SV.[Sales Person] in ({salesman_names})"
     sql_query = f"""
         WITH TargetCustomers AS (
             SELECT 
@@ -1086,16 +1009,10 @@ def review_product_wise_query(month_count, team_names, salesman=None):
     """
     return sql_query
 
-def target_customers_sales_query(start_date, end_date, user, team_names, salesman = None):
-    if is_salesman(user):
-        full_name = user.full_name
-        sub_query = f"WHERE (LOWER(ST.[Sales Person]) = LOWER('{full_name}'))"
-    elif is_manager(user):
-        sub_query = f"WHERE ST.[Team Name] in ({team_names})"
-        if salesman:
-            sub_query += f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
-    else:
-        sub_query = ''
+def target_customers_sales_query(start_date, end_date, salesman_names = None): 
+    sub_query = ''
+    if salesman_names:
+       sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
 
     sql_query = f"""
         WITH SalesTeamCTE AS (
@@ -1154,12 +1071,11 @@ def target_customers_sales_query(start_date, end_date, user, team_names, salesma
     """
     return sql_query
 
-def review_salesman_wise_query1(team_names, salesman = None):
-
-    if team_names:
-        sub_query = f"WHERE ST.[Team Name] in ({team_names})"
-        if salesman:
-            sub_query += f"AND (LOWER(ST.[Sales Person]) = LOWER('{salesman}'))"
+def review_salesman_wise_query1(salesman_names = None):
+    
+    sub_query = ''
+    if salesman_names:
+        sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
 
     sql_query = f"""
         WITH SalesTeamCTE AS (
@@ -1245,9 +1161,10 @@ def review_salesman_wise_query1(team_names, salesman = None):
     """
     return sql_query
 
-def review_salesman_wise_query2(start_date = None, end_date = None, team_names = None):
-    if team_names:
-        sub_query = f"WHERE ST.[Team Name] in ({team_names})"
+def review_salesman_wise_query2(start_date = None, end_date = None, salesman_names = None):
+    sub_query = ''
+    if salesman_names:
+        sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
     sql_query = f"""
         SELECT
             ST.[Team Name],

@@ -21,7 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
     created_at = serializers.DateTimeField(read_only=True)
     last_login = serializers.DateTimeField(read_only=True)
     permitted_reports = ReportPermissionSerializer(required=False)
-    emp_code = serializers.CharField(read_only=True)
+    emp_code = serializers.CharField(required=False)
 
     class Meta:
         model = User
@@ -33,8 +33,9 @@ class UserSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             role = validated_data.pop('role', None)
             user_role = role.lower()
-            full_name = validated_data.get("full_name")
-            utils.verify_user_existance(user_role, full_name)
+            full_name = validated_data.get('full_name')
+            emp_code = validated_data.get('emp_code')
+            utils.verify_user_existance(user_role, emp_code)
             hierarchy_obj = Hierarchy.objects.filter(name=user_role).first()
             reports_permission_data = validated_data.pop('permitted_reports', None)
             if reports_permission_data:
@@ -59,8 +60,9 @@ class UserSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             hierarchy_name = validated_data.pop('role', None)
             user_role = hierarchy_name.lower()
-            full_name = validated_data.get("full_name")
-            utils.verify_user_existance(user_role, full_name)
+            full_name = validated_data.get('full_name')
+            emp_code = validated_data.get('emp_code')
+            utils.verify_user_existance(user_role, emp_code)
             if hierarchy_name:
                 hierarchy_obj = Hierarchy.objects.filter(name=user_role).first()
                 if hierarchy_obj is None:
@@ -69,6 +71,7 @@ class UserSerializer(serializers.ModelSerializer):
                     instance.hierarchy = hierarchy_obj
             instance.email = validated_data.get('email', instance.email)
             instance.full_name = validated_data.get('full_name', instance.full_name)
+            instance.emp_code = validated_data.get('emp_code', instance.emp_code)
             instance.team_name = validated_data.get('team_name', instance.team_name)
             instance.manager_name = validated_data.get('manager_name', instance.manager_name)
             instance.phone_number = validated_data.get('phone_number', instance.phone_number)

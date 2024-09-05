@@ -65,20 +65,20 @@ def create_log(admin_user, user_name, action, sub_action = ""):
     activity_log = UserActivityLog.objects.create(user=admin_user, action_type= action, object = "User", log=f'{action.title()} user {sub_action} {user_name}')
     activity_log.save()
 
-def verify_user_existance(role, full_name):
+def verify_user_existance(role, emp_code):
     conn = report_services.create_sql_server_connection()
     cursor = conn.cursor()
     if role == 'manager':
-        query = f"select * from tbl_HierarchyMapping where [Reporting Manager Name] = '{full_name}'"
+        query = f"select * from tbl_HierarchyMapping where [Reporting Manager EMP ID] = '{emp_code}'"
     elif role == "salesman":
-        query = f"select * from tbl_HierarchyMapping where [Sales Person] = '{full_name}'"
+        query = f"select * from tbl_HierarchyMapping where [EMP ID] = '{emp_code}'"
     elif role == "admin":
-        return True # by pass full_name if we creating admin User
+        return True # by pass emp_code if we creating admin User
     else:
         raise Exception("Role does not exist")
     cursor.execute(query)
     results = cursor.fetchall()
     if not len(results) > 0:
-        raise Exception(f"User '{full_name}' does not exist with '{role}' role")
+        raise Exception(f"User '{emp_code}' does not exist with '{role}' role")
     cursor.close()
     conn.close()

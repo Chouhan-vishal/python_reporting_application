@@ -51,7 +51,6 @@ class UserSerializer(serializers.ModelSerializer):
                 permitted_report_dict_data = {key: value for key, value in permissions_dict.items() if key in permitted_reports_obj.reports_permission.keys()}
                 permitted_reports_obj.reports_permission.update(permitted_report_dict_data)
                 permitted_reports_obj.save()
-            emp_code = user.generate_emp_code(user.id)
             user.emp_code = emp_code
             user.save()
             return user

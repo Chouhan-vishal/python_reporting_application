@@ -172,10 +172,6 @@ class User(AbstractBaseUser):
         # Simplest possible answer: All admins are staff
         return self.is_admin
     
-    @staticmethod
-    def generate_emp_code(id):
-        new_emp_code = str(id).zfill(3)
-        return f'SLS{new_emp_code}'
 
 class OTP(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

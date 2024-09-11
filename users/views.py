@@ -738,6 +738,7 @@ class SalesmanList(APIView):
             user = request.user
             team_name = request.data.get("team_name", None)
             results = report_services.get_salesmans_for_user(user, team_name).split(', ')
+            results = [name.replace("'", "") for name in results]
             return response(SUCCESS, results, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during salesman names retrieval: {str(e)}')

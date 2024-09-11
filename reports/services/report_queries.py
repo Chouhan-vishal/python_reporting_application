@@ -198,7 +198,7 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
             ON IL.[Item Details] = SV.[Item Details]  
         WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'  
             AND SV.[Item Details] <> 'Welding Electrodes' 
-            AND SV.[Sales Person -1] IN (SELECT [Sales Person] 
+            AND SV.[Sales Person -2] IN (SELECT [Sales Person] 
                                         FROM [dbo].[tbl_SalesTeam] 
                                         WHERE {sub_query})  -- Adding the Team Name filter
         GROUP BY IL.[Item Category]
@@ -217,7 +217,7 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
         WHERE 
             CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'
             AND SV.[Item Details] <> 'Welding Electrodes' 
-            AND SV.[Sales Person -1] IN (SELECT [Sales Person] 
+            AND SV.[Sales Person -2] IN (SELECT [Sales Person] 
                                         FROM [dbo].[tbl_SalesTeam] 
                                         WHERE {sub_query})  -- Adding the Team Name filter
         GROUP BY IL.[Item Category]

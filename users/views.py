@@ -717,7 +717,7 @@ class ManagerList(APIView):
             return response(SUCCESS, manager_names, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during manager names retrieval: {str(e)}')
-            return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)         
+            return response(SUCCESS, {'error': 'Error during manager names retrieval'},HTTP_400_BAD_REQUEST)
 
 class SalesmanList(APIView):
     """
@@ -735,23 +735,14 @@ class SalesmanList(APIView):
             })
     def post(self, request):
         try:
+            user = request.user
             team_name = request.data.get("team_name", None)
-            conn = report_services.create_sql_server_connection()
-            cursor = conn.cursor()
-            sql_query = report_queries.salesman_names_query(team_name)
-            cursor.execute(sql_query)
-        
-            # Fetch data
-            results = cursor.fetchall()
-            
-            # Initialize a nested dictionary to hold the grouped data
-            salesman_names = [row[0] for row in results]
-
-            return response(SUCCESS, salesman_names, HTTP_200_OK)
+            results = report_services.get_salesmans_for_user(user, team_name).split(', ')
+            return response(SUCCESS, results, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during salesman names retrieval: {str(e)}')
             return response(SUCCESS, {'error': 'Error during salesman names retrieval'},HTTP_400_BAD_REQUEST)
-            
+
 class AdminDashboard(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
     """

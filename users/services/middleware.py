@@ -13,7 +13,7 @@ class SingleDeviceMiddleware:
     def __call__(self, request):
         auth = JWTAuthentication()
         try:
-            if not 'login' in request.path and not 'authentication' in request.path and not 'reset-password' in request.path and 'request-password-reset-otp' not in request.path:
+            if not 'login' in request.path and not 'authentication' in request.path and not 'reset-password' in request.path and 'request-password-reset-otp' not in request.path and not 'verify-otp' in request.path:
                 user, token = auth.authenticate(request)
                 try:
                     user_token = UserToken.objects.get(user=user)

@@ -69,6 +69,7 @@ class TwoFactorAuthenticationView(APIView):
                     defaults={"token": token.get("access")}
                 )
                 logger.info(f"Access token generated successfully for user with id {user.id}")
+                create_log(admin_user=user, user_name=user.full_name, action="Logged In")
                 return response(SUCCESS, token, HTTP_200_OK)
             else:
                 logger.error(f"Invalid OTP for user with id {user.id}")
@@ -119,7 +120,6 @@ class Login(APIView):
             if not (email and password):
                 raise Exception(f"email and password are required") 
             user = authenticate(email = email, password=password)
-                
             if user is None:
                 return response(FAILED, {MESSAGE: "Invalid credentials"}, HTTP_400_BAD_REQUEST)
             if not user.is_admin:
@@ -128,6 +128,7 @@ class Login(APIView):
                     user=user,
                     defaults={"token": token.get("access")}
                 )
+                create_log(admin_user=user, user_name=user.full_name, action="Logged In")
                 logger.info(f'User with id {user.id} logged in  successfully')
                 return response(SUCCESS, token, HTTP_200_OK)  
             else:

@@ -62,7 +62,8 @@ def send_otp_email(email, otp):
     send_mail(subject, message, settings.EMAIL_HOST_USER, [email])
 
 def create_log(admin_user, user_name, action, sub_action = ""):
-    activity_log = UserActivityLog.objects.create(user=admin_user, action_type= action, object = "User", log=f'{action.title()} user {sub_action} {user_name}')
+    logs = f'{action.title()} user {sub_action} {user_name}'.replace("  ", " ") 
+    activity_log = UserActivityLog.objects.create(user=admin_user, action_type= action, object = "User", log=logs)
     activity_log.save()
 
 def verify_user_existance(role, emp_code):

@@ -18,7 +18,6 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Value, TextField
 from django.utils.timezone import now as aware_utcnow
 from rest_framework_simplejwt.tokens import AccessToken
-from rest_framework_simplejwt.tokens import RefreshToken
 from reports.services import report_services, report_queries
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -75,8 +74,8 @@ class TwoFactorAuthenticationView(APIView):
                 logger.error(f"Invalid OTP for user with id {user.id}")
                 return response(FAILED, {ERROR: "Invalid OTP provided"} ,HTTP_200_OK)
         except Exception as e:
-            logger.error(f'Error during user authentication: {str(e)}')                         
-            return response(FAILED, {ERROR: f'Error during user authentication: {str(e)}'}, HTTP_400_BAD_REQUEST)     
+            logger.error(f'Error during user authentication: {str(e)}')
+            return response(FAILED, {ERROR: f'Error during user authentication: {str(e)}'}, HTTP_400_BAD_REQUEST)
 
 class Login(APIView):
     
@@ -91,7 +90,7 @@ class Login(APIView):
     responses={
         HTTP_200_OK: {},
         HTTP_400_BAD_REQUEST: {}
-    }   
+    }
     )
     def post(self, request):
         """
@@ -101,8 +100,8 @@ class Login(APIView):
             request (HttpRequest): The request object containing email and password.
 
         Returns:
-            Response: Returns authentication tokens if credentials are valid. 
-                      If the user is not an admin, returns a token for authentication 
+            Response: Returns authentication tokens if credentials are valid.
+                      If the user is not an admin, returns a token for authentication
                       and if the user is admin then follows two factor authentication
                       If the credentials are invalid or an error occurs, returns an error message.
         """
@@ -118,7 +117,7 @@ class Login(APIView):
 
             password = request.data.get('password')
             if not (email and password):
-                raise Exception(f"email and password are required") 
+                raise Exception(f"email and password are required")
             user = authenticate(email = email, password=password)
             if user is None:
                 return response(FAILED, {MESSAGE: "Invalid credentials"}, HTTP_400_BAD_REQUEST)
@@ -130,12 +129,12 @@ class Login(APIView):
                 )
                 create_log(admin_user=user, user_name=user.full_name, action="Logged In")
                 logger.info(f'User with id {user.id} logged in  successfully')
-                return response(SUCCESS, token, HTTP_200_OK)  
+                return response(SUCCESS, token, HTTP_200_OK)
             else:
                 mfa = TwoFactorAuthentication.objects.filter(user=user).first()
                 mfa_enabled = mfa.is_enabled
                 logger.info(f'User with "email": {email} authenticated successfully')
-                return response(SUCCESS, {"is_valid": True, "mfa_enabled": mfa_enabled} ,HTTP_200_OK)   
+                return response(SUCCESS, {"is_valid": True, "mfa_enabled": mfa_enabled} ,HTTP_200_OK)
         except User.DoesNotExist:
             logger.error(f'User with id {user.id} does not exist')
             return response(FAILED, {ERROR: 'User does not exist'}, HTTP_400_BAD_REQUEST)
@@ -165,7 +164,7 @@ class Logout(APIView):
         except Exception as e:
             logger.error(f'Error during user logout: {str(e)}')
             return response(FAILED, {ERROR: f'Error during user logout: {str(e)}'}, HTTP_400_BAD_REQUEST)
-    
+
     def post(self, request, *args, **kwargs):
         user = request.user
         UserToken.objects.filter(user=user).delete()
@@ -174,7 +173,7 @@ class Logout(APIView):
 class Users(APIView):
     permission_classes = [IsAdminUser, IsAuthenticated]
     @extend_schema(
-    request=UserSerializer,  
+    request=UserSerializer,
     responses={HTTP_200_OK: UserSerializer(many=False)},
     description="Get user details or update user details.",
     parameters=[
@@ -195,7 +194,7 @@ class Users(APIView):
             request (HttpRequest): Request object.
             pk (int, optional): Primary key of the user to get. Defaults to None.
         Returns:
-            Response: Returns user details if GET method is used. 
+            Response: Returns user details if GET method is used.
             If pk is none then all users are returned.
         """
         if pk:
@@ -218,7 +217,7 @@ class Users(APIView):
                 logger.error(f'Error during user list retrieval: {str(e)}')
                 return Response({ERROR: 'Error during user list retrieval'}, status=status.HTTP_400_BAD_REQUEST)
     @extend_schema(
-    request=UserSerializer,  
+    request=UserSerializer,
     responses={HTTP_200_OK: UserSerializer},
     description="update the user details and return user instance",
     parameters=[
@@ -261,7 +260,7 @@ class Users(APIView):
             logger.error(f'Error during user update: {str(e)}')
             return Response({ERROR: f'Error during user update: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
     @extend_schema(
-    request=UserSerializer,  
+    request=UserSerializer,
     responses={HTTP_201_CREATED: UserSerializer},
     description="Create a new user",
     parameters=[
@@ -310,7 +309,7 @@ class Profile(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-    request=UserSerializer,  
+    request=UserSerializer,
     responses={HTTP_200_OK: UserSerializer},
     description="Retrive user profile details",
     parameters=[
@@ -353,7 +352,7 @@ class Profile(APIView):
             return response(FAILED, {ERROR: 'Error during user detail retrieval'}, status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
-    request=UserSerializer,  
+    request=UserSerializer,
     responses={HTTP_200_OK: UserSerializer},
     description="User can update their profile details",
     parameters=[
@@ -395,7 +394,7 @@ class ResetPasswordRequestOTP(APIView):
         fields = {
             "email": serializers.EmailField(required=True),
         }
-    ),  
+    ),
     responses= {HTTP_200_OK: {},
                HTTP_400_BAD_REQUEST: {}
     },
@@ -440,7 +439,7 @@ class VerifyOTP(APIView):
                 "email": serializers.EmailField(required=True),
                 "OTP": serializers.CharField(required=True),
             }
-    ),  
+    ),
     responses= {HTTP_200_OK: {},
                HTTP_400_BAD_REQUEST: {}
     }
@@ -475,11 +474,11 @@ class VerifyOTP(APIView):
             else:
                 otp_object.delete()
                 return response(FAILED, {ERROR: 'OTP Expired'}, HTTP_400_BAD_REQUEST)
-            
+
         except Exception as e:
             logger.error(f'error during OTP verification: {str(e)}')
             return response(FAILED, {ERROR: f'error during OTP verification: {str(e)}'}, HTTP_400_BAD_REQUEST)
-    
+
 class ResetPassword(APIView):
     @drf_schema(serializer_name="RestPasswrodSerializer",
                 serializer_fields={
@@ -518,7 +517,7 @@ class ResetPassword(APIView):
 
             if not new_password or not confirm_password:
                 logger.error(f'New password and confirm password are required')
-                return response(FAILED, {ERROR: 'New password and confirm password are required'}, HTTP_400_BAD_REQUEST)   
+                return response(FAILED, {ERROR: 'New password and confirm password are required'}, HTTP_400_BAD_REQUEST)
 
             if new_password != confirm_password:
                 logger.error(f'New password and confirm password do not match')
@@ -533,7 +532,7 @@ class ResetPassword(APIView):
         except Exception as e:
             logger.error(f'error during password reset: {str(e)}')
             return response(FAILED, {ERROR: f'error during password reset: {str(e)}'}, HTTP_400_BAD_REQUEST)
-    
+
 class ReportPermissions(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
     @extend_schema(
@@ -542,7 +541,7 @@ class ReportPermissions(APIView):
             fields = {
                 "permissions": serializers.JSONField(required=True),
             }
-    ),  
+    ),
     responses= {HTTP_200_OK: {},
                HTTP_400_BAD_REQUEST: {}
     },
@@ -573,7 +572,7 @@ class ReportPermissions(APIView):
             for permission_key, permission_value in permission_obj.items():
                 user_permission_set.reports_permission[permission_key] = permission_value
             user_permission_set.save()
-            return response(SUCCESS, {MESSAGE: "Permissions updated successfully"}, HTTP_200_OK)        
+            return response(SUCCESS, {MESSAGE: "Permissions updated successfully"}, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during report permission update: {str(e)}')
             return response(FAILED, {ERROR: f'Error during report permission update: {str(e)}'}, HTTP_400_BAD_REQUEST)
@@ -610,11 +609,11 @@ class ReportLogs(APIView):
             return response(SUCCESS, serializer.data, HTTP_200_OK)
         except Exception as e:
             logger.error(f'Error during report logs retrieval: {str(e)}')
-            return response(FAILED, {ERROR: f'Error during report logs retrieval: {str(e)}'}, HTTP_400_BAD_REQUEST)   
+            return response(FAILED, {ERROR: f'Error during report logs retrieval: {str(e)}'}, HTTP_400_BAD_REQUEST)
 
 class UserSearch(APIView):
     @extend_schema(
-    request=UserSearchSerializer,  
+    request=UserSearchSerializer,
     responses={HTTP_200_OK: {},
             HTTP_400_BAD_REQUEST: {}
     },
@@ -752,7 +751,7 @@ class AdminDashboard(APIView):
     Args:
         request (HttpRequest): None
     Returns:
-        Response: Returns active users count, reports viewed data count and teams count .
+        Response: Returns active users count, reports viewed data count and teams count.
     """
     def get(self, request):
         try:

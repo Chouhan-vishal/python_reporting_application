@@ -10,17 +10,17 @@ def sales_summary_query(start_date, end_date, pre_date, salesman_names= None):
                 ST.[Team Name],   
                 [Sales Person], 
                 CAST(GETDATE() AS DATE) AS [Date],
-                CAST(0 AS DECIMAL(10, 2)) AS [Target Qty],  
+                CAST(0 AS DECIMAL(10, 2)) AS [Target Qty],
                 CAST(0 AS DECIMAL(10, 2)) AS [Achv Qty],
                 CAST(GETDATE() - 2 AS DATE) AS [Previous Date]
             FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
         ),
         TargetCustomers AS (
             SELECT DISTINCT  
-                SV.[Team Name],    
+                SV.[Team Name],
                 [Sales Person],
-                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10, 2))), 2) AS [Target Qty], 
-                SV.[Date] 
+                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10, 2))), 2) AS [Target Qty],
+                SV.[Date]
             FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)
             WHERE [Item Category] <> 'Welding Electrodes'
             GROUP BY 
@@ -29,10 +29,10 @@ def sales_summary_query(start_date, end_date, pre_date, salesman_names= None):
                 SV.[Date]
         ),
         Sales AS (
-            SELECT      
-                ST.[Team Name],   
+            SELECT
+                ST.[Team Name],
                 [Sales Person],
-                SUM([Qty(MTs)]) AS [Achv Qty], 
+                SUM([Qty(MTs)]) AS [Achv Qty],
                 ST.[Previous Date]
             FROM SalesTeamCTE ST
             INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
@@ -40,7 +40,7 @@ def sales_summary_query(start_date, end_date, pre_date, salesman_names= None):
                 AND SV.[Item Details] <> 'Welding Electrodes'
                 AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
             GROUP BY 
-                ST.[Team Name],    
+                ST.[Team Name],
                 [Sales Person],
                 ST.[Previous Date]
         ),
@@ -68,7 +68,6 @@ def sales_summary_query(start_date, end_date, pre_date, salesman_names= None):
         ORDER BY ST.[Team Name], ST.[Sales Person];
     """
     return sql_query
-
 
 def sales_collection_outstanding_summary(pre_date, salesman_names=None):
     sub_query = ''
@@ -170,7 +169,6 @@ def sales_collection_outstanding_summary(pre_date, salesman_names=None):
     """
     return sql_query
 
-
 def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_names = None):
     sub_query = ""
     if salesman_names:
@@ -186,39 +184,39 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
         GROUP BY [Item Category]
         ),
         Sales AS (
-        SELECT          
+        SELECT
             IL.[Item Category] as [Item Category],
             CAST(0 AS Decimal(10,2)) AS [Target Qty],
-            ISNULL(SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END), 0) AS [Achv Qty] 
+            ISNULL(SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END), 0) AS [Achv Qty]
         FROM (SELECT DISTINCT
                 [Item Details],
-                [Item Category] 
-                FROM dbo.tbl_ItemsList IL  WITH(Nolock)) IL   
-        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(Nolock) 
+                [Item Category]
+                FROM dbo.tbl_ItemsList IL  WITH(Nolock)) IL
+        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(Nolock)
             ON IL.[Item Details] = SV.[Item Details]  
-        WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'  
-            AND SV.[Item Details] <> 'Welding Electrodes' 
-            AND SV.[Sales Person -2] IN (SELECT [Sales Person] 
-                                        FROM [dbo].[tbl_SalesTeam] 
+        WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
+            AND SV.[Item Details] <> 'Welding Electrodes'
+            AND SV.[Sales Person -2] IN (SELECT [Sales Person]
+                                        FROM [dbo].[tbl_SalesTeam]
                                         WHERE {sub_query})  -- Adding the Team Name filter
         GROUP BY IL.[Item Category]
         ),
         PreviousDateQty AS (
-        SELECT          
+        SELECT
             IL.[Item Category] as [Item Category],
             CAST(0 AS Decimal(10,2)) AS [Target Qty],
             ISNULL(SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END), 0) AS [Achv Qty] 
         FROM (SELECT DISTINCT
                 [Item Details],
-                [Item Category] 
-                FROM dbo.tbl_ItemsList IL  WITH(Nolock)) IL   
-        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(Nolock) 
-            ON IL.[Item Details] = SV.[Item Details]  
+                [Item Category]
+                FROM dbo.tbl_ItemsList IL  WITH(Nolock)) IL
+        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(Nolock)
+            ON IL.[Item Details] = SV.[Item Details]
         WHERE 
             CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'
-            AND SV.[Item Details] <> 'Welding Electrodes' 
-            AND SV.[Sales Person -2] IN (SELECT [Sales Person] 
-                                        FROM [dbo].[tbl_SalesTeam] 
+            AND SV.[Item Details] <> 'Welding Electrodes'
+            AND SV.[Sales Person -2] IN (SELECT [Sales Person]
+                                        FROM [dbo].[tbl_SalesTeam]
                                         WHERE {sub_query})  -- Adding the Team Name filter
         GROUP BY IL.[Item Category]
         )
@@ -229,7 +227,7 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
         ISNULL(PDQ.[Achv Qty], 0) AS [pre_day_sales],
         CASE 
             WHEN TC.[Target Qty] = 0 THEN 0
-            ELSE (ISNULL(S.[Achv Qty], 0) / TC.[Target Qty]) * 100 
+            ELSE (ISNULL(S.[Achv Qty], 0) / TC.[Target Qty]) * 100
         END AS [achievement_percentage]
         FROM TargetCustomers TC
         LEFT JOIN Sales S ON TC.[Item Category] = S.[Item Category]
@@ -263,7 +261,7 @@ def weekly_report_query(user, salesman_names):
         -- CTEs for various calculations
         WITH SalesTeam AS (
             SELECT DISTINCT
-                ST.[Team Name],   
+                ST.[Team Name],
                 [Sales Person],
                 CAST(0 AS DECIMAL(12,2)) AS [Target Qty],
                 CAST(0 AS DECIMAL(12,2)) AS [Achv Qty],
@@ -275,8 +273,8 @@ def weekly_report_query(user, salesman_names):
         ),
         TargetCustomers AS (
             SELECT 
-                SV.[Team Name],  
-                SV.[Sales Person], 
+                SV.[Team Name],
+                SV.[Sales Person],
                 ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10,2))), 2) AS [Target Qty]
             FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)  
             WHERE [Item Category] <> 'Welding Electrodes'
@@ -289,34 +287,34 @@ def weekly_report_query(user, salesman_names):
                 SUM([Qty(MTs)]) AS [Achv Qty]
             FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK) 
             INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
-                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person])) 
-            WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE()) 
-                AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE()) 
+                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
+            WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE())
+                AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE())
                 AND SV.[Item Details] <> 'Welding Electrodes'
             GROUP BY ST.[Team Name], ST.[Sales Person]
         ),
         WeeklySales AS (
             SELECT
-                ST.[Team Name],   
+                ST.[Team Name],
                 ST.[Sales Person],
                 SUM([Qty(MTs)]) AS [Weekly Achvd Qty]
-            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK) 
-            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
-                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person])) 
-            WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE()) 
-                AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE()) 
+            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
+            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
+                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
+            WHERE YEAR(SV.[Voucher Date]) = YEAR(GETDATE())
+                AND MONTH(SV.[Voucher Date]) = MONTH(GETDATE())
                 AND SV.[Item Details] <> 'Welding Electrodes'
                 AND CAST(SV.[Voucher Date] AS DATE) BETWEEN @WeekStartDayMonday AND @WeekEndDaySaturday
             GROUP BY ST.[Team Name], ST.[Sales Person]
         ),
         CollectionAmount AS (
             SELECT
-                ST.[Team Name],  
+                ST.[Team Name],
                 ST.[Sales Person],
                 SUM(RR.[Credit Amount]) AS [Collection Amount]
             FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)  
-            INNER JOIN [dbo].[tbl_ReceiptRegister] RR WITH (NOLOCK) 
-                ON LTRIM(RTRIM(RR.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))  
+            INNER JOIN [dbo].[tbl_ReceiptRegister] RR WITH (NOLOCK)
+                ON LTRIM(RTRIM(RR.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
             WHERE CAST(RR.[Receipt Date] AS DATE) BETWEEN @WeekStartDayMonday AND @WeekEndDaySaturday
             GROUP BY ST.[Team Name], ST.[Sales Person]
         ),
@@ -365,7 +363,7 @@ def collection_report_by_date_range(date, salesman_names = None):
     
     sub_query = ''
     if salesman_names:
-        sub_query = f"AND ST.[Sales Person] in ({salesman_names})"        
+        sub_query = f"AND ST.[Sales Person] in ({salesman_names})"
 
     # Define the SQL query
     sql_query = f"""
@@ -419,7 +417,6 @@ def customer_wise_outstanding_query(outstanding_value, salesman_names):
         """
     return sql_query
 
-
 def cr_utilization_report_query(salesman_names = None):
     sub_query = ''
     if salesman_names:
@@ -466,7 +463,6 @@ def cr_utilization_report_query(salesman_names = None):
 
             """
     return sql_query
-
 
 def salesman_and_product_wise_query(user, salesman_names, month, year=None):
     if is_salesman(user):
@@ -550,7 +546,7 @@ def salesman_and_product_wise_query(user, salesman_names, month, year=None):
 def target_and_achieved_query(year, month, pre_day, salesman_names= None):
     sub_query = ''
     if salesman_names:
-        sub_query =  f"WHERE ST.[Sales Person] in ({salesman_names})"        
+        sub_query =  f"WHERE ST.[Sales Person] in ({salesman_names})"
 
     sql_query = f"""
         WITH SalesTeamCTE AS (
@@ -567,7 +563,7 @@ def target_and_achieved_query(year, month, pre_day, salesman_names= None):
             SELECT DISTINCT  
                 SV.[Team Name],    
                 [Sales Person],
-                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10, 2))), 2) AS [Target Qty], 
+                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10, 2))), 2) AS [Target Qty],
                 SV.[Date],
                 COUNT(DISTINCT SV.[Customer ID]) AS [Target Customer Count]
             FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)
@@ -589,7 +585,7 @@ def target_and_achieved_query(year, month, pre_day, salesman_names= None):
                 AND SV.[Item Details] <> 'Welding Electrodes'
                 AND YEAR(SV.[Voucher Date]) = {year} AND MONTH(SV.[Voucher Date]) = {month} 
             GROUP BY 
-                ST.[Team Name],    
+                ST.[Team Name],
                 [Sales Person],
                 ST.[Previous Date]
         ),
@@ -672,8 +668,8 @@ def welding_electrode_product_sales_query(start_date, end_date, salesman_names =
         ),
         --Sales 
         Sales AS (
-            SELECT          
-                ST.[Team Name],   
+            SELECT
+                ST.[Team Name],
                 ST.[Sales Person],
                 TC.[Target Qty], -- Corrected to use Target Qty from TargetCustomers
                 SUM(CASE WHEN SV.[Item Details] = 'Welding Electrodes' THEN [Qty(Box)] END) AS [Achv Qty]
@@ -684,34 +680,34 @@ def welding_electrode_product_sales_query(start_date, end_date, salesman_names =
                 ON TC.[Team Name] = ST.[Team Name]
                 AND TC.[Sales Person] = ST.[Sales Person]
             WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}' 
-            AND SV.[Item Details] = 'Welding Electrodes' 
+            AND SV.[Item Details] = 'Welding Electrodes'
             GROUP BY 
-                ST.[Team Name], 
+                ST.[Team Name],
                 ST.[Sales Person],
                 TC.[Target Qty] -- Grouping by Target Qty to get correct sum
         ),
         --Final Sales Report
         SalesReportFinal AS (
             SELECT 
-                [Team Name],  
+                [Team Name],
                 [Sales Person],
                 [Target Qty],
                 SUM([Achv Qty]) AS [Achv Qty]
             FROM (
                 SELECT 
-                    [Team Name], 
+                    [Team Name],
                     [Sales Person],
-                    [Target Qty], 
+                    [Target Qty],
                     SUM([Achv Qty]) AS [Achv Qty]
                 FROM Sales
                 GROUP BY 
-                    [Team Name], 
+                    [Team Name],
                     [Sales Person],
                     [Target Qty]
 
                 UNION ALL
 
-                SELECT          
+                SELECT
                     TC.[Team Name],   
                     TC.[Sales Person],
                     TC.[Target Qty], 
@@ -725,13 +721,13 @@ def welding_electrode_product_sales_query(start_date, end_date, salesman_names =
                 ON ah.[Team Name] = TC.[Team Name] AND ah.[Sales Person] = TC.[Sales Person]
             ) ap
             GROUP BY
-                [Team Name],   
+                [Team Name],
                 [Sales Person],
                 [Target Qty]
         )
         --Query to retrieve final results with achieved percentage and ordered by team name
-        SELECT    
-            [Team Name],    
+        SELECT
+            [Team Name],
             [Sales Person],
             [Target Qty],
             [Achv Qty],
@@ -771,12 +767,12 @@ def durastrong_tmt_product_sales_query(start_date, end_date, salesman_names = No
                 SV.[Sales Person]
         ),
         CTESales AS (
-            SELECT      
+            SELECT
                 ST.[Team Name],
-                ST.[Sales Person],  
+                ST.[Sales Person],
                 SUM([Qty(MTs)]) AS [Sales Achv]
             FROM TempSalesTeam ST WITH (NOLOCK)
-            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
+            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
                 ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
             WHERE SV.[Item Details] = 'DURASTRONG TMT'
             AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
@@ -882,7 +878,6 @@ def all_customers_sales_query(start_date, end_date, salesman_names = None):
     """
     return sql_query
 
-
 def product_wise_month_on_month_query(start_date, end_date, salesman_names):
     
     sub_query = ''
@@ -891,18 +886,18 @@ def product_wise_month_on_month_query(start_date, end_date, salesman_names):
         
     sql_query = f"""
         WITH Sales AS (
-        SELECT          
+        SELECT
             IL.[Item Category] AS [Item Category],
-            SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END) AS [Achv Qty] 
+            SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END) AS [Achv Qty]
         FROM (SELECT DISTINCT
                 [Item Details],
-                [Item Category] 
-                FROM dbo.tbl_ItemsList IL  WITH(NOLOCK)) IL   
-        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK) 
+                [Item Category]
+                FROM dbo.tbl_ItemsList IL  WITH(NOLOCK)) IL
+        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK)
             ON IL.[Item Details] = SV.[Item Details]
         INNER JOIN [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)
-            ON SV.[Sales Person -2] = ST.[Sales Person]  
-        WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'  
+            ON SV.[Sales Person -2] = ST.[Sales Person]
+        WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
             AND SV.[Item Details] <> 'Welding Electrodes'
             {sub_query}
         GROUP BY IL.[Item Category]
@@ -985,7 +980,7 @@ def review_product_wise_query(month_count, salesman_names=None):
                 ON TC.[Team Name] = ST.[Team Name] 
                 AND TC.[Product cluster] = ST.[Product cluster]
             GROUP BY
-                COALESCE(TC.[Team Name], ST.[Team Name]),   
+                COALESCE(TC.[Team Name], ST.[Team Name]),
                 COALESCE(TC.[Product cluster], ST.[Product cluster]),
                 COALESCE(TC.[Target Qty], 0),
                 COALESCE(ST.[Year], 0),
@@ -1013,31 +1008,31 @@ def target_customers_sales_query(start_date, end_date, salesman_names = None):
     sql_query = f"""
         WITH SalesTeamCTE AS (
             SELECT   
-                ST.[Team Name],   
+                ST.[Team Name],
                 [Sales Person],
-                CAST(0 AS DECIMAL(10,2)) AS [Target Qty],  
+                CAST(0 AS DECIMAL(10,2)) AS [Target Qty],
                 CAST(0 AS DECIMAL(10,2)) AS [Achv Qty],
                 CAST(GETDATE()-2 AS DATE) AS [Previous Date]
             FROM [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)  
         )
         , TargetCustomers AS (
-            SELECT DISTINCT  
-                SV.[Team Name],    
-                [Sales Person],  
-                SV.[Customer Name],
-                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10,2))),2) AS [Target Qty], 
-                SV.[Date] 
-            FROM [dbo].[tbl_TargetCustomers] SV WITH(NOLOCK)   
-            WHERE [Item Category] <> 'Welding Electrodes'
-            GROUP BY 
+            SELECT DISTINCT
                 SV.[Team Name],
-                [Sales Person],  
-                SV.[Customer Name],  
+                [Sales Person],
+                SV.[Customer Name],
+                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10,2))),2) AS [Target Qty],
+                SV.[Date]
+            FROM [dbo].[tbl_TargetCustomers] SV WITH(NOLOCK)
+            WHERE [Item Category] <> 'Welding Electrodes'
+            GROUP BY
+                SV.[Team Name],
+                [Sales Person],
+                SV.[Customer Name],
                 SV.[Date] 
         )
         , Sales AS (
-            SELECT      
-                ST.[Team Name],   
+            SELECT
+                ST.[Team Name],
                 [Sales Person],
                 SV.[Customer Name],
                 SUM([Qty(MTs)]) AS [Achv Qty], 
@@ -1048,7 +1043,7 @@ def target_customers_sales_query(start_date, end_date, salesman_names = None):
                 AND SV.[Item Details] <> 'Welding Electrodes'
                 AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}' -- Filter by date range
             GROUP BY 
-                ST.[Team Name],    
+                ST.[Team Name],
                 [Sales Person],
                 SV.[Customer Name],
                 ST.[Previous Date]
@@ -1076,10 +1071,10 @@ def review_salesman_wise_query1(salesman_names = None):
     sql_query = f"""
         WITH SalesTeamCTE AS (
             SELECT   
-                ST.[Team Name],   
+                ST.[Team Name],
                 ST.[Sales Person],
                 CAST(GETDATE() AS DATE) AS [Date],
-                CAST(0 AS DECIMAL(10, 2)) AS [Target Qty],  
+                CAST(0 AS DECIMAL(10, 2)) AS [Target Qty],
                 CAST(0 AS DECIMAL(10, 2)) AS [Achv Qty],
                 CAST(GETDATE() - 2 AS DATE) AS [Previous Date]
             FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
@@ -1087,9 +1082,9 @@ def review_salesman_wise_query1(salesman_names = None):
         ),
         TargetCustomers AS (
             SELECT  
-                TC.[Team Name],    
+                TC.[Team Name],
                 TC.[Sales Person],
-                ROUND(SUM(CAST(TC.[Target Qty] AS DECIMAL(10, 2))), 2) AS [Target Qty], 
+                ROUND(SUM(CAST(TC.[Target Qty] AS DECIMAL(10, 2))), 2) AS [Target Qty],
                 COUNT(DISTINCT TC.[Customer ID]) AS [Target Customer Count]
             FROM [dbo].[tbl_TargetCustomers] TC WITH (NOLOCK)
             WHERE TC.[Item Category] <> 'Welding Electrodes'
@@ -1097,7 +1092,7 @@ def review_salesman_wise_query1(salesman_names = None):
                 TC.[Team Name], TC.[Sales Person]
         ),
         Sales AS (
-            SELECT      
+            SELECT
                 TC.[Team Name],
                 TC.[Sales Person],
                 SUM(SV.[Qty(MTs)]) AS [Achv Qty]
@@ -1111,7 +1106,7 @@ def review_salesman_wise_query1(salesman_names = None):
                 TC.[Team Name], TC.[Sales Person]
         ),
         CustomerReached AS (
-            SELECT      
+            SELECT
                 TC.[Team Name],
                 TC.[Sales Person],
                 COUNT(DISTINCT CASE WHEN [Qty(MTs)] > 0 THEN SV.[Customer ID] ELSE NULL END) AS [Target Customer Reached]
@@ -1196,7 +1191,6 @@ def get_team_names(manager_name = None):
     """
     return sql_query
 
-
 def get_salesman_names(emp_id = None, is_manager = False, team_name = None):
     if is_manager:
         sub_query = f" WHERE ST.[Reporting Manager EMP ID] = '{emp_id}'"
@@ -1235,17 +1229,17 @@ class InsentiveQueries:
         sql_query = f"""
             WITH SalesTeamCTE AS (
             SELECT   
-                    ST.[Team Name],   
-                    [Sales Person], 
+                    ST.[Team Name],
+                    [Sales Person],
                     CAST(GETDATE() AS Date) AS [Date],
-                    CAST(0 AS Decimal(10,2)) AS [Target Qty],  
+                    CAST(0 AS Decimal(10,2)) AS [Target Qty],
                     CAST(0 AS Decimal(10,2)) AS [Achv Qty],
                     CAST(GETDATE()-2 AS Date) AS [Previous Date]
             FROM [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)
             ),
             TargetCustomers AS (
             SELECT DISTINCT
-                    SV.[Team Name],    
+                    SV.[Team Name],
                     [Sales Person],
                     ROUND(SUM(CAST(SV.[Target Qty] AS Decimal(10,2))),2) AS [Target Qty]
             FROM [dbo].[tbl_TargetCustomers] SV WITH(NOLOCK)
@@ -1255,8 +1249,8 @@ class InsentiveQueries:
                     [Sales Person]
             ),
             Sales AS (
-            SELECT      
-                    ST.[Team Name],   
+            SELECT
+                    ST.[Team Name],
                     [Sales Person],
                     SUM([Qty(MTs)]) AS [Achv Qty]
             FROM SalesTeamCTE ST
@@ -1266,7 +1260,7 @@ class InsentiveQueries:
             AND YEAR(SV.[Voucher Date]) = {self.year} 
             AND MONTH(SV.[Voucher Date]) = {self.month}
             GROUP BY 
-                    ST.[Team Name],    
+                    ST.[Team Name],
                     [Sales Person]
             ),
             FilteredSales AS (
@@ -1318,24 +1312,24 @@ class InsentiveQueries:
     def incentive_amount_query(self):
         sql_query = f"""
             WITH Sales AS (
-                SELECT          
+                SELECT
                     ST.[Sales Person],
                     IL.[Item Category] AS [Product cluster],
                     IL.[Item Details] AS [Product Details], -- Added Product Details field
                     ISNULL(TC.[Target Qty], 0) AS [Target Qty],
                     SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END) AS [Achv Qty]
-                FROM [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)  
-                INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK) 
-                    ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))  
+                FROM [dbo].[tbl_SalesTeam] ST WITH(NOLOCK)
+                INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(NOLOCK)
+                    ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
                 INNER JOIN (
                     SELECT DISTINCT
                         [Item Details],
                         [Item Category] 
                     FROM dbo.tbl_ItemsList IL WITH(NOLOCK)
                 ) IL   
-                    ON IL.[Item Details] = SV.[Item Details]  
+                    ON IL.[Item Details] = SV.[Item Details]
                 LEFT JOIN (
-                    SELECT     
+                    SELECT
                         [Sales Person],
                         [Item Category] AS [Product cluster],
                         ROUND(SUM(CAST([Target Qty] AS DECIMAL(10,2))),2) AS [Target Qty]

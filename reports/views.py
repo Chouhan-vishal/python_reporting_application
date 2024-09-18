@@ -84,7 +84,6 @@ class SalesSummary(APIView):
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             
-
             if not start_date or not end_date:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
@@ -93,7 +92,6 @@ class SalesSummary(APIView):
             results = self.fetch_sales_summary(start_date, end_date, pre_date, salesman_names)
             team_sales_summary = self.process_sales_results(results, month_count)
             response_data = self.format_response_data(team_sales_summary)
-            
             
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, response_data, HTTP_200_OK)
@@ -215,7 +213,6 @@ class ProductWiseSalesSummary(APIView):
             
             start_date, end_date = request.data.get("start_date", None), request.data.get("end_date", None)
 
-
             if not start_date or not end_date:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
@@ -310,7 +307,6 @@ class WeeklySummary(APIView):
                 **summary
             })
         return team_sales_list
-
 
     def post(self,request):
         try:
@@ -989,7 +985,6 @@ class AllCustomersSales(APIView):
 
             result = self.fetch_all_customers_mom_report(date_ranges, salesman_names)
 
-            
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, result, HTTP_200_OK)
         

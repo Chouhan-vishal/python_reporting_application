@@ -30,7 +30,6 @@ if os.environ.get('DEBUG', None) == 'True':
 else:
     DEBUG = False
 
-
 ALLOWED_HOSTS = ["*"]
 
 # Application definition
@@ -88,7 +87,6 @@ WSGI_APPLICATION = 'reporting_application.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
 
 database_name = os.environ["DATABASE_NAME"]
 database_user = os.environ["DATABASE_USER"]
@@ -156,7 +154,6 @@ TIME_ZONE = 'Asia/Kolkata'
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
@@ -167,16 +164,12 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-
 # Logging Configuration
 
 LOGS_DIR = os.path.join(BASE_DIR, 'logs')
 
 if not os.path.exists(LOGS_DIR):
     os.makedirs(LOGS_DIR)
-
-
 
 LOGGING = {
     "version": 1,
@@ -223,7 +216,6 @@ LOGGING = {
         },
     },
 }
-
 
 # Email Backend Configuration
 

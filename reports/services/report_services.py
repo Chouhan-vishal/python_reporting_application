@@ -27,7 +27,6 @@ def create_sql_server_connection():
     except pyodbc.Error as e:
         raise Exception(f'error accessing SQL Server')
 
-
 def get_previous_date(end_date):
     """
     This function returns the previous date based on the given date and end date.
@@ -110,8 +109,7 @@ def get_teamnames_for_user(user, team_name = None):
         return team_names
     except Exception as e:
         raise e
-    
-    
+
 def get_salesmans_for_user(user, team_name = None, salesman=None):
     try:
         conn = create_sql_server_connection()

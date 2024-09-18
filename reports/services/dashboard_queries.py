@@ -82,7 +82,7 @@ def kpi_dashboard_queries(user):
         SELECT DISTINCT 
             ST.[Team Name],
             ST.[Sales Person],
-            ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],  
+            ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],
             ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
             ISNULL((SELECT [Target Customer Count] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Count],
             ISNULL((SELECT [Target Customer Reached] FROM CustomerReached WHERE CustomerReached.[Team Name] = ST.[Team Name] AND CustomerReached.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Reached],

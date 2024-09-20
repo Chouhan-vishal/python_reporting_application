@@ -1,7 +1,9 @@
+import csv
 import pyotp
 import logging
 from .services.utils import *
 from rest_framework import status
+from django.http import HttpResponse
 from .services.utils import response
 from django.db.models import Q, Count
 from rest_framework import serializers
@@ -604,12 +606,62 @@ class ReportLogs(APIView):
             Response: Returns All the User Activity Logs from UserActivityLog model.
         """
         try:
-            user_activity_logs = UserActivityLog.objects.all().order_by('-created_at')
-            serializer = UserActivityLogSerializer(user_activity_logs, many=True)
-            return response(SUCCESS, serializer.data, HTTP_200_OK)
+            limit = int(request.data.get('limit', 100))
+            offset = int(request.data.get('offset', 0))
+            start_date = request.data.get("start_date", None)
+            end_date = request.data.get("end_date", None)
+            if start_date and end_date:
+                user_activity_logs = UserActivityLog.objects.filter(created_at__range=(start_date, end_date)).order_by('-created_at')
+            else:
+                user_activity_logs = UserActivityLog.objects.all().order_by('-created_at')
+
+            limited_data = user_activity_logs[offset:offset + limit]
+            serializer = UserActivityLogSerializer(limited_data, many=True)
+            return Response({"success": True, "data": serializer.data}, status=HTTP_200_OK)
+
         except Exception as e:
             logger.error(f'Error during report logs retrieval: {str(e)}')
-            return response(FAILED, {ERROR: f'Error during report logs retrieval: {str(e)}'}, HTTP_400_BAD_REQUEST)
+            return Response({"error": f'Error during report logs retrieval: {str(e)}'}, status=HTTP_400_BAD_REQUEST)
+
+class ExportingActivityLogs(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    @extend_schema(
+    responses= {HTTP_200_OK: {},
+               HTTP_400_BAD_REQUEST: {}
+    },
+    parameters=[
+        OpenApiParameter(
+                name='Authorization',
+                location= OpenApiParameter.HEADER,
+                description='Authorization Bearer token',
+                required=True,
+                type=OpenApiTypes.STR
+            ),
+    ]
+    )
+    def get(self, request):
+        """
+        Export User Activity Logs as a CSV file.
+        """
+        start_date = request.data.get("start_date", None)
+        end_date = request.data.get("end_date", None)
+        if start_date and end_date:
+            user_activity_logs = UserActivityLog.objects.filter(created_at__range=(start_date, end_date))
+        else:
+            user_activity_logs = UserActivityLog.objects.all().order_by('-created_at')
+
+        # Create the HttpResponse object with the appropriate CSV header
+        file_type = HttpResponse(content_type='text/csv')
+        file_type['Exporting-logs'] = 'attachment; filename="user_activity_logs.csv"'
+
+        writer = csv.writer(file_type)
+        # Write the header row
+        writer.writerow(['id', 'created_at', 'object', 'log', 'user_id', 'action_type'])
+
+        for log in user_activity_logs:
+            writer.writerow([log.id, log.created_at, log.object, log.log, log.user_id, log.action_type])
+
+        return file_type
 
 class UserSearch(APIView):
     @extend_schema(

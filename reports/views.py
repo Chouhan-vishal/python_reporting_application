@@ -225,8 +225,9 @@ class ProductWiseSalesSummary(APIView):
                 {
                     **dict(zip(columns, row)),
                     "pre_day_sales": row[columns.index("pre_day_sales")] if row[columns.index("pre_day_sales")] is not None else 0,
-                    "achievement_percentage": (row[columns.index("achvd_qty")] / (row[columns.index("target_qty")]* month_count) * 100) if row[columns.index("target_qty")] != 0 else 0,
-                    "target_qty": row[columns.index("target_qty")] * month_count if row[columns.index("target_qty")] is not None else 0,
+                    "achievement_percentage": (row[columns.index("achvd_qty")] / (row[columns.index("target_qty")] * month_count) * 100) 
+                    if row[columns.index("target_qty")] is not None and row[columns.index("target_qty")] != 0 else 0.0,
+                    "target_qty": row[columns.index("target_qty")] * month_count if row[columns.index("target_qty")] is not None else 0.0,
                 }
                 for row in results
             ]

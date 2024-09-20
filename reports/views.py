@@ -1,5 +1,4 @@
 import logging
-from users.models import User
 from collections import defaultdict
 from rest_framework import serializers
 from reports.models import ProductGroup
@@ -10,10 +9,10 @@ from reporting_application.constants import *
 from users.services.utils import extend_schema
 from users.services.utils import drf_schema, response
 from rest_framework.permissions import IsAuthenticated
-from reports.services.report_services import HasReportPermission, is_month_last_week
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from reports.services import report_services, report_queries, dashboard_queries
+from reports.services.report_services import HasReportPermission, is_month_last_week, find_max_date
 
 logger = logging.getLogger('reports')
 
@@ -93,8 +92,11 @@ class SalesSummary(APIView):
             team_sales_summary = self.process_sales_results(results, month_count)
             response_data = self.format_response_data(team_sales_summary)
             
+            max_date = find_max_date()
+            
+            # response_data["refresh_date"] = max_date           
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
-            return response(SUCCESS, response_data, HTTP_200_OK)
+            return response(SUCCESS, response_data, HTTP_200_OK, max_date)
         except Exception as e:
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")
             return response(ERROR, {ERROR: f"error occured while viewing the report: {e}"},HTTP_400_BAD_REQUEST)
@@ -1327,11 +1329,14 @@ class SalesmanKpiDashboard(APIView):
         # Merge customer data into each main data dictionary
         for item in main_data:
             item.update(customers_data)
+        
+        max_date = find_max_date()
+        if main_data and main_data[0]:
+            main_data[0]["refresh_date"] = max_date
 
         # Prepare the final response data
-        final_data = main_data
-
-        return Response(final_data)
+        
+        return Response(main_data)
 
 class IncentiveReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]

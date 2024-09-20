@@ -617,11 +617,11 @@ class ReportLogs(APIView):
 
             limited_data = user_activity_logs[offset:offset + limit]
             serializer = UserActivityLogSerializer(limited_data, many=True)
-            return Response({"success": True, "data": serializer.data}, status=HTTP_200_OK)
+            return response(SUCCESS, serializer.data, HTTP_200_OK)
 
         except Exception as e:
             logger.error(f'Error during report logs retrieval: {str(e)}')
-            return Response({"error": f'Error during report logs retrieval: {str(e)}'}, status=HTTP_400_BAD_REQUEST)
+            return response(FAILED, {ERROR: f'Error during report logs retrieval: {str(e)}'}, HTTP_400_BAD_REQUEST)
 
 class ExportingActivityLogs(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]

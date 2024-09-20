@@ -595,7 +595,7 @@ class ReportLogs(APIView):
             ),
     ]
     )
-    def get(self, request):
+    def post(self, request):
         """
         Return User Activity Logs.
 

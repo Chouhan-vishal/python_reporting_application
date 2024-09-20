@@ -46,11 +46,15 @@ def send_email(context,to_email,template_name,subject):
     email.attach_alternative(html_message, 'text/html')
     email.send()
 
-def response(status, data, status_code):
-    return Response({
+def response(status, data, status_code, refresh_date=''):
+    response_data = {
         'status': status,
-        'data': data
-    }, status=status_code) 
+        'data': data,
+    }
+    if refresh_date:
+        response_data['refresh_date'] = refresh_date    
+    return Response(response_data, status=status_code)
+
 
 def generate_otp():
     return str(random.randint(100000, 999999))

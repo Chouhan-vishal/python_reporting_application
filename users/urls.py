@@ -18,4 +18,5 @@ urlpatterns = [
     re_path(r'^managers/?$', views.ManagerList.as_view()),
     re_path(r'^salesmans/?$', views.SalesmanList.as_view()),
     re_path(r'^admin-dashboard/?$', views.AdminDashboard.as_view()),
+    re_path(r'^exporting-activity-logs/?$', views.ExportingActivityLogs.as_view())
 ]

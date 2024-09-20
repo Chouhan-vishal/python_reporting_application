@@ -215,3 +215,22 @@ def is_month_last_week():
     is_last_week = (current_week_number == last_week_number)
 
     return is_last_week
+
+def find_max_date():
+    # Use lowercase table name (default behavior if table was created without quotes)
+    sql_query = 'SELECT TOP 1 MAX([Created Date]) AS max_date FROM tbl_SalesVouchers'
+    
+    conn = create_sql_server_connection()
+    cursor = conn.cursor()
+    cursor.execute(sql_query)
+    result = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+    if result and result[0]:
+        # Format the datetime object to 'YYYY-MM-DD' format
+        formatted_datetime = result[0][0].strftime('%Y-%m-%d %H:%M:%S')
+
+        return formatted_datetime
+
+    return None

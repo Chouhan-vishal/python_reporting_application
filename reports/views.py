@@ -50,7 +50,7 @@ class SalesSummary(APIView):
                 'achieved%':(sales_quantity / (target_qty * month_count) * 100) if target_qty != 0 else 0,
                 'PreDaySalesValue': pre_day_sales_value,
             }
-            team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty'] * int(month_count)
+            team_sales_summary[team_name]['team_target_qty'] += sales_summary['target_qty']
             team_sales_summary[team_name]['team_sales_quantity'] += sales_summary['sales_quantity']
             team_sales_summary[team_name]['TeamPreDaySalesValue'] += sales_summary['PreDaySalesValue']
             team_sales_summary[team_name]['sales_persons'].append(sales_summary)

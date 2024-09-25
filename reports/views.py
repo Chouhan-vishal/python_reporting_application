@@ -226,34 +226,39 @@ class ProductWiseSalesSummary(APIView):
             pre_date = report_services.get_previous_date(end_date)
             results = self.fetch_product_wise_sales_summary(start_date, end_date, pre_date, salesman_names)
 
-            grouped_data = defaultdict(lambda: defaultdict(lambda: {
-            'target_qty': 0.0,
-            'achieved': 0.0,
-            'pre_day': 0.0,
-            'achvd_per':  0.0
-            }))
+            # Initialize an empty dictionary to store the final result
+            final_result = {}
 
-            # Iterate through the data and sum values
+            # Iterate through the data and process it within the same loop
             for entry in results:
                 team_name = entry[1]
                 product_name = entry[2]
+                
+                # Calculate values based on input, ensuring that None values are handled
                 target_qty = (float(entry[3]) if entry[3] is not None else 0.0) * month_count
                 achieved = float(entry[4]) if entry[4] is not None else 0.0
                 pre_day = float(entry[8]) if entry[8] is not None else 0.0
 
-                grouped_data[team_name][product_name]['target_qty'] += target_qty
-                grouped_data[team_name][product_name]['achieved'] += achieved
-                grouped_data[team_name][product_name]['pre_day'] += pre_day
-                if target_qty > 0:
-                    grouped_data[team_name][product_name]['achvd_per'] = (achieved / target_qty) * 100
-                else:
-                    grouped_data[team_name][product_name]['achvd_per'] = 0.0
+                # Calculate the achieved percentage (achvd_per), handling division by zero
+                achvd_per = (achieved / target_qty * 100) if target_qty > 0 else 0.0
 
-            # Convert the nested defaultdict to a regular dict for easier viewing
-            final_result = {team: dict(products) for team, products in grouped_data.items()}
+                # If the team_name doesn't exist in the final_result, add it
+                if team_name not in final_result:
+                    final_result[team_name] = {}
+
+                # Add product details under the corresponding team
+                final_result[team_name][product_name] = {
+                    'target_qty': target_qty,
+                    'achieved': achieved,
+                    'pre_day': pre_day,
+                    'achvd_per': achvd_per
+                }
+
+            # Convert final_result to the desired list of dictionaries format
+            result_list = [{'team_name': team, 'product_name': products} for team, products in final_result.items()]
 
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
-            return response(SUCCESS, final_result, HTTP_200_OK)
+            return response(SUCCESS, result_list, HTTP_200_OK)
 
         except Exception as e:
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")

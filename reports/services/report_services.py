@@ -27,7 +27,7 @@ def create_sql_server_connection():
     except pyodbc.Error as e:
         raise Exception(f'error accessing SQL Server')
 
-def get_previous_date(end_date):
+def get_previous_date(end_date, month_count = 0):
     """
     This function returns the previous date based on the given date and end date.
     If the end_date month is not the current month, it returns the day after today.
@@ -42,7 +42,7 @@ def get_previous_date(end_date):
     """
     today_date = datetime.today().date()
     end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-    if end_date.month != today_date.month:
+    if end_date.month != today_date.month or end_date.month != month_count:
         # Return the day after today
         pre_date = today_date + timedelta(days=1)
     else:

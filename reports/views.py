@@ -670,7 +670,7 @@ class TargetAndAchieved(APIView):
             year = request.data.get("year", None)
             if not month or not year:
                 return Response({"error": "Please provide both month and year."}, status=400)
-            pre_date = report_services.get_previous_date(str(datetime.today().date()))
+            pre_date = report_services.get_previous_date(str(datetime.today().date()), month)
             results = self.fetch_target_and_achieved_report(month,year,pre_date,salesman_names)
 
             team_sales_summary_list = self.process_target_and_achieved_report(results)

@@ -244,19 +244,22 @@ class ProductWiseSalesSummary(APIView):
 
                 # If the team_name doesn't exist in the final_result, add it
                 if team_name not in final_result:
-                    final_result[team_name] = {}
+                    final_result[team_name] = []
 
-                # Add product details under the corresponding team
-                final_result[team_name][product_name] = {
+                # Append product details as a dictionary under the corresponding team
+                final_result[team_name].append({
+                    'product_name': product_name,
                     'target_qty': target_qty,
-                    'achieved': achieved,
+                    'sales_quantity': achieved,
                     'pre_day': pre_day,
-                    'achvd_per': achvd_per
-                }
+                    'achieved%': achvd_per
+                })
 
             # Convert final_result to the desired list of dictionaries format
-            result_list = [{'team_name': team, 'product_name': products} for team, products in final_result.items()]
-
+            result_list = [
+                {'team_name': team, 'products': products}
+                for team, products in final_result.items()
+            ]
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
             return response(SUCCESS, result_list, HTTP_200_OK)
 

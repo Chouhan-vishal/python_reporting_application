@@ -709,8 +709,7 @@ class WeldingElectrode(APIView):
             team_name = row[0]
             sales_person = row[1]
             target_qty = row[2]
-            sales_quantity = row[3]
-            achieved_percentage = row[4]
+            sales_quantity = row[3] if row[3] is not None else 0
 
             sales_summary = {
                 'sales_person': sales_person,

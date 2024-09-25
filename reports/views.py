@@ -43,6 +43,8 @@ class SalesSummary(APIView):
 
         for row in results:
             team_name, sales_person, target_qty, sales_quantity, achieved_pct, pre_day_sales_value = row
+            if target_qty == 0 and sales_quantity == 0 and pre_day_sales_value == 0:
+                continue
             sales_summary = {
                 'sales_person': sales_person,
                 'target_qty': target_qty * month_count,
@@ -117,6 +119,8 @@ class SalesCollectionOutstanding(APIView):
 
         for row in results:
             team_name,sales_person,pre_day_sales_mts,pre_day_collection,overall_outstanding_amt,above_25_days_os,above_45_days_os,above_90_days_os = row[0],row[1],row[2], row[3], row[4], row[5], row[6], row[7]
+            if pre_day_sales_mts == 0 and pre_day_collection == 0 and overall_outstanding_amt ==0 and above_25_days_os==0 and above_45_days_os == 0 and above_90_days_os == 0:
+                continue
             
             sales_summary = {
                 'sales_person': sales_person,
@@ -276,6 +280,8 @@ class WeeklySummary(APIView):
             weekly_target = pending_taget if today_is_monday else row[10]
             team_name = row[3]
             salesman = row[4]
+            if row[5] ==0 and row[6] == 0 and pending_taget ==0 and weekly_target ==0 and row[13] ==0:
+                continue
                 
             if is_month_last_week:
                 weekly_target = pending_taget
@@ -611,6 +617,8 @@ class TargetAndAchieved(APIView):
     
         # Process each row in the results
         for row in results:
+            if row[2] == 0 and row[3] == 0 and row[5] ==0:
+                continue
             team_name = row[0]
             sales_person = row[1]
             sales_summary = {
@@ -710,6 +718,8 @@ class WeldingElectrode(APIView):
             sales_person = row[1]
             target_qty = row[2]
             sales_quantity = row[3] if row[3] is not None else 0
+            if target_qty ==0 and sales_quantity ==0:
+                continue
 
             sales_summary = {
                 'sales_person': sales_person,
@@ -792,6 +802,8 @@ class DurastrongTMTProductSales(APIView):
             target_qty = row[2]
             sales_quantity = row[3]
             achieved_percentage = row[4]
+            if target_qty == 0 and sales_quantity ==0:
+                continue
 
             sales_summary = {
                 'sales_person': sales_person,

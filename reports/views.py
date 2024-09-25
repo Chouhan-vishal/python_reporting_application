@@ -202,11 +202,10 @@ class ProductWiseSalesSummary(APIView):
         query = report_queries.product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_names)
         cursor.execute(query)
         results = cursor.fetchall()
-        columns = [col[0] for col in cursor.description]
-        # Closing the cursor and connection
         cursor.close()
         conn.close()
-        return results,columns
+
+        return results
 
     @drf_schema(serializer_name="DateSerializer")
     def post(self,request):
@@ -225,22 +224,36 @@ class ProductWiseSalesSummary(APIView):
             month_count  = report_services.count_months(start_date, end_date)
 
             pre_date = report_services.get_previous_date(end_date)
-            results,columns = self.fetch_product_wise_sales_summary(start_date, end_date, pre_date, salesman_names)
+            results = self.fetch_product_wise_sales_summary(start_date, end_date, pre_date, salesman_names)
 
-            data = [
-                {
-                    **dict(zip(columns, row)),
-                    "pre_day_sales": row[columns.index("pre_day_sales")] if row[columns.index("pre_day_sales")] is not None else 0,
-                    "achievement_percentage": (row[columns.index("achvd_qty")] / (row[columns.index("target_qty")] * month_count) * 100) 
-                    if row[columns.index("target_qty")] is not None and row[columns.index("target_qty")] != 0 else 0.0,
-                    "target_qty": row[columns.index("target_qty")] * month_count if row[columns.index("target_qty")] is not None else 0.0,
-                }
-                for row in results
-            ]
-            final_response = {"product_wise_sales": data}
+            grouped_data = defaultdict(lambda: defaultdict(lambda: {
+            'target_qty': 0.0,
+            'achieved': 0.0,
+            'pre_day': 0.0,
+            'achvd_per':  0.0
+            }))
+
+            # Iterate through the data and sum values
+            for entry in results:
+                team_name = entry[1]
+                product_name = entry[2]
+                target_qty = (float(entry[3]) if entry[3] is not None else 0.0) * month_count
+                achieved = float(entry[4]) if entry[4] is not None else 0.0
+                pre_day = float(entry[8]) if entry[8] is not None else 0.0
+
+                grouped_data[team_name][product_name]['target_qty'] += target_qty
+                grouped_data[team_name][product_name]['achieved'] += achieved
+                grouped_data[team_name][product_name]['pre_day'] += pre_day
+                if target_qty > 0:
+                    grouped_data[team_name][product_name]['achvd_per'] = (achieved / target_qty) * 100
+                else:
+                    grouped_data[team_name][product_name]['achvd_per'] = 0.0
+
+            # Convert the nested defaultdict to a regular dict for easier viewing
+            final_result = {team: dict(products) for team, products in grouped_data.items()}
 
             report_services.create_log(user=request.user,report_name=self.REPORT_NAME)
-            return response(SUCCESS, final_response, HTTP_200_OK)
+            return response(SUCCESS, final_result, HTTP_200_OK)
 
         except Exception as e:
             logger.exception(f"an error occured while viewing the Report-{self.REPORT_NAME}: {e}")

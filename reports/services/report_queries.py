@@ -175,64 +175,139 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
         sub_query = f"[Sales Person] IN ({salesman_names})"
     sql_query = f"""
         WITH TargetCustomers AS (
-        SELECT
-            [Item Category],
-            ROUND(SUM(CAST([Target Qty] AS Decimal(10,2))), 2) AS [Target Qty]
-        FROM [dbo].[tbl_TargetCustomers] WITH (NOLOCK)   
-        WHERE [Item Category] <> 'Welding Electrodes'
+            SELECT
+                SV.[Team Name],  
+                SV.[Item Category] AS [Product cluster], 
+                ROUND(SUM(CAST(SV.[Target Qty] AS DECIMAL(10,2))), 2) AS [Target Qty], 
+                SV.[Date] 
+            FROM [dbo].[tbl_TargetCustomers] SV WITH (NOLOCK)   
+            WHERE [Item Category] <> 'Welding Electrodes'
             AND {sub_query}
-        GROUP BY [Item Category]
+            GROUP BY 
+                SV.[Team Name],
+                SV.[Item Category],
+                SV.[Date]
         ),
-        Sales AS (
-        SELECT
-            IL.[Item Category] as [Item Category],
-            CAST(0 AS Decimal(10,2)) AS [Target Qty],
-            ISNULL(SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END), 0) AS [Achv Qty]
-        FROM (SELECT DISTINCT
-                [Item Details],
-                [Item Category]
-                FROM dbo.tbl_ItemsList IL  WITH(Nolock)) IL
-        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(Nolock)
-            ON IL.[Item Details] = SV.[Item Details]  
-        WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
-            AND SV.[Item Details] <> 'Welding Electrodes'
-            AND SV.[Sales Person -2] IN (SELECT [Sales Person]
-                                        FROM [dbo].[tbl_SalesTeam]
-                                        WHERE {sub_query})  -- Adding the Team Name filter
-        GROUP BY IL.[Item Category]
+
+        -- SalesTemp CTE
+        SalesTemp AS (
+            SELECT          
+                ST.[Team Name],   
+                IL.[Item Category] AS [Product cluster],
+                CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN SUM([Qty(MTs)]) ELSE 0 END AS [Achv Qty],
+                FORMAT(SV.[Voucher Date], 'MMMM') AS [MonthName], 
+                YEAR(SV.[Voucher Date]) AS YearNo 
+            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)  
+            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
+                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))  
+            INNER JOIN (
+                SELECT DISTINCT
+                    [Item Details],
+                    [Item Category]
+                FROM dbo.tbl_ItemsList IL WITH (NOLOCK)
+            ) IL   
+                ON IL.[Item Details] = SV.[Item Details]  
+            WHERE SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
+                            AND SV.[Item Details] <> 'Welding Electrodes'
+                            AND SV.[Sales Person -2] IN (SELECT [Sales Person]
+                                                        FROM [dbo].[tbl_SalesTeam]
+                                                        WHERE {sub_query})
+            GROUP BY 
+                ST.[Team Name], 
+                SV.[Voucher Date],  
+                SV.[Item Details],
+                IL.[Item Category]
         ),
-        PreviousDateQty AS (
-        SELECT
-            IL.[Item Category] as [Item Category],
-            CAST(0 AS Decimal(10,2)) AS [Target Qty],
-            ISNULL(SUM(CASE WHEN SV.[Item Details] <> 'Welding Electrodes' THEN [Qty(MTs)] ELSE 0 END), 0) AS [Achv Qty] 
-        FROM (SELECT DISTINCT
-                [Item Details],
-                [Item Category]
-                FROM dbo.tbl_ItemsList IL  WITH(Nolock)) IL
-        INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH(Nolock)
-            ON IL.[Item Details] = SV.[Item Details]
-        WHERE 
-            CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'
+
+        -- Combined Sales with Target Quantities
+        CombinedSales AS (
+            SELECT 
+                ST.[Team Name],   
+                ST.[Product cluster],
+                COALESCE(TC.[Target Qty], 0) AS [Target Qty], 
+                ST.[Achv Qty],
+                ST.[MonthName], 
+                ST.[YearNo]
+            FROM SalesTemp ST
+            LEFT JOIN TargetCustomers TC
+                ON ST.[Team Name] = TC.[Team Name]
+                AND ST.[Product cluster] = TC.[Product cluster]
+
+            UNION ALL
+
+            SELECT          
+                TC.[Team Name],   
+                TC.[Product cluster],
+                TC.[Target Qty], 
+                CAST(0 AS DECIMAL(10,2)) AS [Achv Qty],
+                NULL AS [MonthName], 
+                NULL AS YearNo
+            FROM TargetCustomers TC
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM SalesTemp ST
+                WHERE ST.[Team Name] = TC.[Team Name] 
+                AND ST.[Product cluster] = TC.[Product cluster]
+            )
+        ),
+
+        -- SalesReportFinal CTE
+        SalesReportFinal AS (
+            SELECT 
+                [Team Name],   
+                [Product cluster],
+                [Target Qty],
+                SUM([Achv Qty]) AS [Achv Qty],
+                [MonthName], 
+                YearNo
+            FROM CombinedSales
+            GROUP BY
+                [Team Name],   
+                [Product cluster],
+                [Target Qty], 
+                [MonthName], 
+                YearNo
+        ),
+
+        -- Previous Day Sales CTE
+        PrevDaySales AS (
+            SELECT 
+                ST.[Team Name],   
+                IL.[Item Category] AS [Product cluster],
+                SUM([Qty(MTs)]) AS [PrevDayAchvQty]
+            FROM [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)  
+            INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK) 
+                ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))  
+            INNER JOIN (
+                SELECT DISTINCT
+                    [Item Details],
+                    [Item Category] 
+                FROM dbo.tbl_ItemsList IL WITH (NOLOCK)
+            ) IL   
+                ON IL.[Item Details] = SV.[Item Details]
+            WHERE SV.[Voucher Date] = CAST(GETDATE() - 1 AS DATE)
             AND SV.[Item Details] <> 'Welding Electrodes'
-            AND SV.[Sales Person -2] IN (SELECT [Sales Person]
-                                        FROM [dbo].[tbl_SalesTeam]
-                                        WHERE {sub_query})  -- Adding the Team Name filter
-        GROUP BY IL.[Item Category]
+            GROUP BY 
+                ST.[Team Name], 
+                IL.[Item Category]
         )
-        SELECT 
-        TC.[Item Category] AS [item_category],
-        TC.[Target Qty] AS [target_qty],
-        ISNULL(S.[Achv Qty], 0) AS [achvd_qty],
-        ISNULL(PDQ.[Achv Qty], 0) AS [pre_day_sales],
-        CASE 
-            WHEN TC.[Target Qty] = 0 THEN 0
-            ELSE (ISNULL(S.[Achv Qty], 0) / TC.[Target Qty]) * 100
-        END AS [achievement_percentage]
-        FROM TargetCustomers TC
-        LEFT JOIN Sales S ON TC.[Item Category] = S.[Item Category]
-        LEFT JOIN PreviousDateQty PDQ ON TC.[Item Category] = PDQ.[Item Category]
-        ORDER BY TC.[Item Category];
+
+        -- Final Sales Report Query
+        SELECT    
+            CAST(GETDATE() AS DATE) AS [Sales Date], 
+            SRF.[Team Name],    
+            SRF.[Product cluster],
+            SRF.[Target Qty],
+            SRF.[Achv Qty],
+            ISNULL(ROUND(CAST(SRF.[Achv Qty] AS FLOAT) / NULLIF(CAST(SRF.[Target Qty] AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
+            MAX(SRF.[MonthName]) OVER (PARTITION BY SRF.[Team Name]) AS [MonthName], 
+            MAX(SRF.YearNo) OVER (PARTITION BY SRF.[Team Name]) AS YearNo,
+            ISNULL(PDS.[PrevDayAchvQty], 0) AS [PrevDayAchvQty]  -- Adding previous day's achieved quantity
+        FROM SalesReportFinal SRF
+        LEFT JOIN PrevDaySales PDS
+            ON SRF.[Team Name] = PDS.[Team Name]
+            AND SRF.[Product cluster] = PDS.[Product cluster];
+
     """
     return sql_query
 

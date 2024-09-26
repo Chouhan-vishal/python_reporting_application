@@ -287,6 +287,7 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
                 ON IL.[Item Details] = SV.[Item Details]
             WHERE SV.[Voucher Date] = CAST(GETDATE() - 1 AS DATE)
             AND SV.[Item Details] <> 'Welding Electrodes'
+            AND {sub_query}
             GROUP BY 
                 ST.[Team Name], 
                 IL.[Item Category]

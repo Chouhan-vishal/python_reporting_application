@@ -19,6 +19,7 @@ logger = logging.getLogger('reports')
 class SalesSummary(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = 'Sales Summary Report'
+    REPORT_KEY = 'sales_summary'
     def fetch_sales_summary(self, start_date, end_date, pre_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         try:
@@ -105,6 +106,7 @@ class SalesSummary(APIView):
 
 class SalesCollectionOutstanding(APIView):
     REPORT_NAME = 'Sales Collection Outstanding Report'
+    REPORT_KEY = 'sales_collection_outstanding'
     permission_classes = [IsAuthenticated, HasReportPermission]
     def process_sales_collections_outstanding_results(self,results):
         team_sales_summary = defaultdict(lambda: {
@@ -195,6 +197,7 @@ class SalesCollectionOutstanding(APIView):
 
 class ProductWiseSalesSummary(APIView):
     REPORT_NAME = "Product Wise Sales Summary"
+    REPORT_KEY = 'product_wise_sales_summary'
     permission_classes = [IsAuthenticated, HasReportPermission]
     def fetch_product_wise_sales_summary(self,start_date, end_date, pre_date, salesman_names):
         conn = report_services.create_sql_server_connection()
@@ -270,6 +273,7 @@ class ProductWiseSalesSummary(APIView):
 class WeeklySummary(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Weekly Summary Report"
+    REPORT_KEY = 'weekly_summary'
     def fetch_weekly_summary(self,user, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -359,6 +363,7 @@ class WeeklySummary(APIView):
 class Collection(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Collection Report"
+    REPORT_KEY = 'collection'
     def fetch_collection_report(self,salesman_names,start_date,end_date):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -427,6 +432,7 @@ class Collection(APIView):
 
 class CustomerWiseOutstanding(APIView):
     REPORT_NAME = 'Customer Wise Outstanding Report'
+    REPORT_KEY = 'customer_wise_outstanding'
     permission_classes = [IsAuthenticated, HasReportPermission]
     def process_customer_wise_outstanding(self,data):
         # formatted_data,total_outstanding_sum = self.process_customer_wise_outstanding(data)
@@ -492,6 +498,7 @@ class CustomerWiseOutstanding(APIView):
 class CrUtilization(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "CR Utilization Report"
+    REPORT_KEY = 'cr_utilization'
     @drf_schema(serializer_name="CRUtilizationReportSerializer",
             serializer_fields={
                 "team_name": serializers.CharField(),
@@ -531,6 +538,7 @@ class CrUtilization(APIView):
 
 class SalesmanAndProductWise(APIView):
     REPORT_NAME = "Salesman and Product Wise Report"
+    REPORT_KEY = 'salesman_and_product_wise'
     permission_classes = [IsAuthenticated, HasReportPermission]
     def fetch_salesman_and_product_wise_report(self, user, salesman_names, month, year):
         conn = report_services.create_sql_server_connection()
@@ -610,6 +618,7 @@ class SalesmanAndProductWise(APIView):
 
 class TargetAndAchieved(APIView):
     REPORT_NAME = 'Target and Achieved Report'
+    REPORT_KEY = 'target_and_achieved'
     permission_classes = [IsAuthenticated, HasReportPermission]
 
     def fetch_target_and_achieved_report(self,year,month,pre_date,salesman_names):
@@ -715,7 +724,7 @@ class TargetAndAchieved(APIView):
 class WeldingElectrode(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Welding Electrode Product Sales Report"
-
+    REPORT_KEY = 'welding_electrode'
     def fetch_welding_electrode_product_sales(self,start_date, end_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -799,6 +808,7 @@ class WeldingElectrode(APIView):
 class DurastrongTMTProductSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Durastrong TMT Product Sales Report"
+    REPORT_KEY = 'durastrong_tmt_product_sales'
     def fetch_durastrong_tmt_product_sales(self,start_date, end_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -885,7 +895,7 @@ class DurastrongTMTProductSales(APIView):
 class SalesRegister(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Sales Register Report"
-
+    REPORT_KEY = 'sales_register'
     def fetch_and_process_sales_register_report(self,start_date,end_date, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -931,6 +941,7 @@ class SalesRegister(APIView):
 class BlockCustomersList(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Block Customers List Report"
+    REPORT_KEY = 'block_customers_list'
     def fetch_and_process_block_customers_list_report(self, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -961,6 +972,7 @@ class BlockCustomersList(APIView):
 class AllCustomersSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "All Customers Month on Month Report"
+    REPORT_KEY = 'all_customers_sales'
     def fetch_all_customers_mom_report(self,date_ranges, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -1029,6 +1041,7 @@ class AllCustomersSales(APIView):
 
 class ProductWiseMonthSales(APIView):
     REPORT_NAME = "Product Wise Month On Month Report"
+    REPORT_KEY = 'product_wise_month_sales'
     permission_classes = [IsAuthenticated, HasReportPermission]
 
     def process_product_wise_month_report(self,intermediate_result):
@@ -1094,6 +1107,7 @@ class ProductWiseMonthSales(APIView):
 class ReviewProductWise(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Review Product Wise Report"
+    REPORT_KEY = 'review_product_wise'
     def fetch_review_product_wise_report(self,month_count, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()        
@@ -1161,7 +1175,7 @@ class ReviewProductWise(APIView):
 class TargetCustomerSales(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Target Customer Sales Report"
-
+    REPORT_KEY = 'target_customer_sales'
     def fetch_and_process_target_customer_sales(self,month_count, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
@@ -1228,6 +1242,7 @@ class TargetCustomerSales(APIView):
 
 class ReviewSalesmanWise(APIView):
     REPORT_NAME = "Review SalesMan Wise Report"
+    REPORT_KEY = 'review_salesman_wise'
     permission_classes = [IsAuthenticated, HasReportPermission]
     def fetch_review_salesman_wise_data(self,month_count,salesman_names):
         conn = report_services.create_sql_server_connection()
@@ -1373,6 +1388,7 @@ class SalesmanKpiDashboard(APIView):
 class IncentiveReport(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = "Incentive Report"
+    REPORT_KEY = 'incentive'
     @extend_schema()
     def post(self, request):
         try:

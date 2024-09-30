@@ -416,10 +416,19 @@ def weekly_report_query(user, salesman_names):
             ST.[Sales Person] AS [Sales Men], 
             COALESCE(TC.[Target Qty], 0) AS [Sales Target],
             COALESCE(S.[Achv Qty], 0) AS [Achv],
-            ISNULL(ROUND(CAST(COALESCE(S.[Achv Qty], 0) AS FLOAT) / NULLIF(CAST(COALESCE(TC.[Target Qty], 0) AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
+            ISNULL(
+                ROUND(
+                    CAST(COALESCE(S.[Achv Qty], 0) AS FLOAT) / 
+                    NULLIF(CAST(COALESCE(TC.[Target Qty], 0) AS FLOAT), 0) * 100, 0
+                ), 0
+            ) AS [Achv %],
             CAST(COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0) AS DECIMAL(12,2)) AS [Pending Target],
-            CAST((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / @Workingdays AS DECIMAL(12,2)) AS [Daily Target],
-            CAST(((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / @Workingdays) * 6 AS DECIMAL(12,2)) AS [Weekly Target],
+            ISNULL(
+                CAST((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / NULLIF(@Workingdays, 0) AS DECIMAL(12,2)), 0
+            ) AS [Daily Target],
+            ISNULL(
+                CAST(((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / NULLIF(@Workingdays, 0)) * 6 AS DECIMAL(12,2)), 0
+            ) AS [Weekly Target],
             COALESCE(O.[Above 25 Days Outstanding], 0) AS [Collection Target],
             COALESCE(CA.[Collection Amount], 0) AS [Collection Achv],
             COALESCE(WS.[Weekly Achvd Qty], 0) AS [Weekly Achvd Qty]
@@ -429,9 +438,8 @@ def weekly_report_query(user, salesman_names):
         LEFT JOIN CollectionAmount CA ON ST.[Sales Person] = CA.[Sales Person]
         LEFT JOIN Outstandings O ON ST.[Sales Person] = O.[Sales Person]
         LEFT JOIN WeeklySales WS ON ST.[Sales Person] = WS.[Sales Person] AND ST.[Team Name] = WS.[Team Name]
-
         {sub_query}
-        ORDER BY ST.[Team Name] ;
+        ORDER BY ST.[Team Name]
         """
     return sql_query
 

@@ -976,8 +976,8 @@ class AllCustomersSales(APIView):
             
             # Process the results
             for row in results:
-                sales_person = row[0]
-                customer_name = row[1]
+                sales_person = row[1]
+                customer_name = row[0]
                 achv_qty = row[3]
                 
                 # Find the existing entry for the sales person and customer, if it exists

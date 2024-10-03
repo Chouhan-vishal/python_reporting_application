@@ -19,11 +19,11 @@ logger = logging.getLogger('reports')
 class SalesSummary(APIView):
     permission_classes = [IsAuthenticated, HasReportPermission]
     REPORT_NAME = 'Sales Summary Report'
-    def fetch_sales_summary(self, start_date, end_date, pre_date, salesman_names):
+    def fetch_sales_summary(self, start_date, end_date, pre_date, is_sunday, salesman_names):
         conn = report_services.create_sql_server_connection()
         try:
             cursor = conn.cursor()
-            sql_query = report_queries.sales_summary_query(start_date, end_date, pre_date, salesman_names)
+            sql_query = report_queries.sales_summary_query(start_date, end_date, pre_date, is_sunday, salesman_names)
             # Assuming you execute the query with the provided start_date and end_date values
             cursor.execute(sql_query)
             results = cursor.fetchall()
@@ -89,8 +89,8 @@ class SalesSummary(APIView):
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
             
             month_count  = report_services.count_months(start_date, end_date)            
-            pre_date = report_services.get_previous_date(end_date)
-            results = self.fetch_sales_summary(start_date, end_date, pre_date, salesman_names)
+            pre_date, is_sunday = report_services.get_previous_date(end_date)
+            results = self.fetch_sales_summary(start_date, end_date, pre_date, salesman_names, is_sunday)
             team_sales_summary = self.process_sales_results(results, month_count)
             response_data = self.format_response_data(team_sales_summary)
             
@@ -158,10 +158,10 @@ class SalesCollectionOutstanding(APIView):
             }
             for team_name, summary in team_sales_summary.items()
         ]
-    def fetch_sales_collection_outstanding_summary(self,pre_date, salesman_names):
+    def fetch_sales_collection_outstanding_summary(self,pre_date, is_sunday, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.sales_collection_outstanding_summary(pre_date, salesman_names)
+        query = report_queries.sales_collection_outstanding_summary(pre_date, is_sunday, salesman_names)
         cursor.execute(query)
         results = cursor.fetchall()
         cursor.close()
@@ -182,8 +182,8 @@ class SalesCollectionOutstanding(APIView):
             if not start_date or not end_date:
                 return Response({"error": "Please provide both start_date and end_date."}, status=400)
         
-            pre_date = report_services.get_previous_date(end_date)
-            results = self.fetch_sales_collection_outstanding_summary(pre_date, salesman_names)
+            pre_date, is_sunday= report_services.get_previous_date(end_date)
+            results = self.fetch_sales_collection_outstanding_summary(pre_date, salesman_names, is_sunday)
             team_sales_summary = self.process_sales_collections_outstanding_results(results)
             result = self.format_sales_collection_outstanding(team_sales_summary)
 
@@ -196,10 +196,10 @@ class SalesCollectionOutstanding(APIView):
 class ProductWiseSalesSummary(APIView):
     REPORT_NAME = "Product Wise Sales Summary"
     permission_classes = [IsAuthenticated, HasReportPermission]
-    def fetch_product_wise_sales_summary(self,start_date, end_date, pre_date, salesman_names):
+    def fetch_product_wise_sales_summary(self,start_date, end_date, pre_date, is_sunday, salesman_names):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        query = report_queries.product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_names)
+        query = report_queries.product_wise_sales_summary_query(start_date, end_date, pre_date, is_sunday, salesman_names)
         cursor.execute(query)
         results = cursor.fetchall()
         cursor.close()
@@ -223,8 +223,8 @@ class ProductWiseSalesSummary(APIView):
             
             month_count  = report_services.count_months(start_date, end_date)
 
-            pre_date = report_services.get_previous_date(end_date)
-            results = self.fetch_product_wise_sales_summary(start_date, end_date, pre_date, salesman_names)
+            pre_date, is_sunday = report_services.get_previous_date(end_date)
+            results = self.fetch_product_wise_sales_summary(start_date, end_date, pre_date, salesman_names, is_sunday)
 
             # Initialize an empty dictionary to store the final result
             final_result = {}
@@ -612,10 +612,10 @@ class TargetAndAchieved(APIView):
     REPORT_NAME = 'Target and Achieved Report'
     permission_classes = [IsAuthenticated, HasReportPermission]
 
-    def fetch_target_and_achieved_report(self,year,month,pre_date,salesman_names):
+    def fetch_target_and_achieved_report(self,year,month,pre_date,salesman_names, is_sunday):
         conn = report_services.create_sql_server_connection()
         cursor = conn.cursor()
-        sql_query = report_queries.target_and_achieved_query(month, year, pre_date, salesman_names)
+        sql_query = report_queries.target_and_achieved_query(month, year, pre_date, salesman_names, is_sunday)
         # Assuming you execute the query with the provided start_date and end_date values
         cursor.execute(sql_query)
         results = cursor.fetchall()
@@ -699,8 +699,8 @@ class TargetAndAchieved(APIView):
             year = request.data.get("year", None)
             if not month or not year:
                 return Response({"error": "Please provide both month and year."}, status=400)
-            pre_date = report_services.get_previous_date(str(datetime.today().date()), month)
-            results = self.fetch_target_and_achieved_report(month,year,pre_date,salesman_names)
+            pre_date, is_sunday = report_services.get_previous_date(str(datetime.today().date()), month)
+            results = self.fetch_target_and_achieved_report(month,year,pre_date,salesman_names, is_sunday)
 
             team_sales_summary_list = self.process_target_and_achieved_report(results)
         
@@ -976,8 +976,8 @@ class AllCustomersSales(APIView):
             
             # Process the results
             for row in results:
-                sales_person = row[0]
-                customer_name = row[1]
+                sales_person = row[1]
+                customer_name = row[0]
                 achv_qty = row[3]
                 
                 # Find the existing entry for the sales person and customer, if it exists

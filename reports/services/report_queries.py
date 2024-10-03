@@ -115,7 +115,7 @@ def sales_collection_outstanding_summary(pre_date, salesman_names=None):
                 ST.[Team Name],    
                 ST.[Sales Person],
                 SUM(OS.[Pending Amount]) AS [Total Outstanding],
-                SUM(CASE WHEN OS.Ageing > 25 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 25 Days Outstanding],
+                SUM(CASE WHEN OS.Ageing > 30 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 30 Days Outstanding],
                 SUM(CASE WHEN OS.Ageing > 45 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 45 Days Outstanding],
                 SUM(CASE WHEN OS.Ageing > 90 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 90 Days Outstanding]
             FROM SalesTeam ST
@@ -151,7 +151,7 @@ def sales_collection_outstanding_summary(pre_date, salesman_names=None):
             COALESCE(S.Sales, 0) AS Sales,
             COALESCE(CA.[Collection Amount], 0) AS [Collection Amount],
             COALESCE(O.[Total Outstanding], 0) AS [Total Outstanding],
-            COALESCE(O.[Above 25 Days Outstanding], 0) AS [Above 25 Days Outstanding],
+            COALESCE(O.[Above 30 Days Outstanding], 0) AS [Above 30 Days Outstanding],
             COALESCE(O.[Above 45 Days Outstanding], 0) AS [Above 45 Days Outstanding],
             COALESCE(O.[Above 90 Days Outstanding], 0) AS [Above 90 Days Outstanding],
             COALESCE(PDS.[PreDaySales], 0) AS [PreDaySales]

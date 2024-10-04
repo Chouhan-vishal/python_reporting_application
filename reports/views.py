@@ -476,7 +476,7 @@ class CustomerWiseOutstanding(APIView):
                 return Response({"error": str(e)}, status=400)
 
             outstanding_value = request.data.get("outstanding")
-            outstanding_days = [0, 25, 45, 90]
+            outstanding_days = [0, 30, 45, 90]
             if outstanding_value not in outstanding_days:
                 return Response({"error": "Please provide valid outstanding day value"}, status=400)
             data = self.fetch_customer_wise_outstanding(outstanding_value, salesman_names)

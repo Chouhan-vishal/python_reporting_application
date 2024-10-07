@@ -41,7 +41,6 @@ def get_previous_date(end_date, month_count = None):
     datetime.date: The previous date as a datetime.date string.
     """
     today_date = datetime.today().date()
-    is_sunday=False
     end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
     if end_date.month != today_date.month or (month_count and end_date.month != month_count):
         # Return the day after today
@@ -55,12 +54,11 @@ def get_previous_date(end_date, month_count = None):
         elif today_date.weekday() == 0:  # Monday is represented by 0
             # Subtract two days to get Saturday
             pre_date = today_date - timedelta(days=2)
-            is_sunday = pre_date - timedelta(days=1).strftime('%Y-%m-%d')
         else:
             # Subtract one day to get the previous day
             pre_date = today_date - timedelta(days=1)
     
-    return pre_date.strftime('%Y-%m-%d'), is_sunday
+    return pre_date.strftime('%Y-%m-%d')
 
 def get_monthly_date_ranges(num_months):
     date_ranges = []

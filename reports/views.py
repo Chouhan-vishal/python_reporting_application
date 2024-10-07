@@ -111,15 +111,15 @@ class SalesCollectionOutstanding(APIView):
             'team_pre_day_sales_mts': 0,
             'team_pre_day_collection': 0,
             'team_overall_outstanding_amt': 0,
-            'team_above_25_days_os': 0,
+            'team_above_30_days_os': 0,
             'team_above_45_days_os': 0,
             'team_above_90_days_os': 0,
             'team_sales_persons': []
         })
 
         for row in results:
-            team_name,sales_person,pre_day_sales_mts,pre_day_collection,overall_outstanding_amt,above_25_days_os,above_45_days_os,above_90_days_os = row[0],row[1],row[2], row[3], row[4], row[5], row[6], row[7]
-            if pre_day_sales_mts == 0 and pre_day_collection == 0 and overall_outstanding_amt ==0 and above_25_days_os==0 and above_45_days_os == 0 and above_90_days_os == 0:
+            team_name,sales_person,pre_day_sales_mts,pre_day_collection,overall_outstanding_amt,above_30_days_os,above_45_days_os,above_90_days_os = row[0],row[1],row[2], row[3], row[4], row[5], row[6], row[7]
+            if pre_day_sales_mts == 0 and pre_day_collection == 0 and overall_outstanding_amt ==0 and above_30_days_os==0 and above_45_days_os == 0 and above_90_days_os == 0:
                 continue
             
             sales_summary = {
@@ -127,7 +127,7 @@ class SalesCollectionOutstanding(APIView):
                 'pre_day_sales_mts': pre_day_sales_mts,
                 'pre_day_collection': pre_day_collection,
                 'overall_outstanding_amt': overall_outstanding_amt,
-                'above_25_days_os': above_25_days_os,
+                'above_30_days_os': above_30_days_os,
                 'above_45_days_os': above_45_days_os,
                 'above_90_days_os': above_90_days_os
             }
@@ -135,7 +135,7 @@ class SalesCollectionOutstanding(APIView):
             team_sales_summary[team_name]['team_pre_day_sales_mts'] += pre_day_sales_mts
             team_sales_summary[team_name]['team_pre_day_collection'] += pre_day_collection
             team_sales_summary[team_name]['team_overall_outstanding_amt'] += overall_outstanding_amt
-            team_sales_summary[team_name]['team_above_25_days_os'] += above_25_days_os
+            team_sales_summary[team_name]['team_above_30_days_os'] += above_30_days_os
             team_sales_summary[team_name]['team_above_45_days_os'] += above_45_days_os
             team_sales_summary[team_name]['team_above_90_days_os'] += above_90_days_os
 
@@ -151,7 +151,7 @@ class SalesCollectionOutstanding(APIView):
                 'team_pre_day_sales_mts': summary['team_pre_day_sales_mts'],
                 'team_pre_day_collection': summary['team_pre_day_collection'],
                 'team_overall_outstanding_amt': summary['team_overall_outstanding_amt'],
-                'team_above_25_days_os': summary['team_above_25_days_os'],
+                'team_above_30_days_os': summary['team_above_30_days_os'],
                 'team_above_45_days_os': summary['team_above_45_days_os'],
                 'team_above_90_days_os': summary['team_above_90_days_os'],
                 'team_sales_persons': summary['team_sales_persons']
@@ -476,7 +476,7 @@ class CustomerWiseOutstanding(APIView):
                 return Response({"error": str(e)}, status=400)
 
             outstanding_value = request.data.get("outstanding")
-            outstanding_days = [0, 25, 45, 90]
+            outstanding_days = [0, 30, 45, 90]
             if outstanding_value not in outstanding_days:
                 return Response({"error": "Please provide valid outstanding day value"}, status=400)
             data = self.fetch_customer_wise_outstanding(outstanding_value, salesman_names)

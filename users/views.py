@@ -726,7 +726,7 @@ class TeamNames(APIView):
             if is_admin(user):
                 manager_name = request.data.get("manager_name", None)
             else:
-                manager_name = user.full_name.lower()
+                manager_name = user.emp_code
             sql_query = report_queries.get_team_names(manager_name, manager_id)
             cursor.execute(sql_query)
             results = cursor.fetchall()

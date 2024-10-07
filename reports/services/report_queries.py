@@ -1262,9 +1262,11 @@ def review_salesman_wise_query2(start_date = None, end_date = None, salesman_nam
     """
     return sql_query
 
-def get_team_names(manager_name = None):
+def get_team_names(manager_name = None, manager_id =None):
     sub_query = ''
-    if manager_name:
+    if manager_id:
+        sub_query = f" WHERE LOWER(ST.[Reporting Manager EMP ID]) = '{manager_id}'"
+    else:
         sub_query = f" WHERE LOWER(ST.[Reporting Manager Name]) = '{manager_name}'"
     sql_query = f"""
         SELECT DISTINCT

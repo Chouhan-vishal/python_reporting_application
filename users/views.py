@@ -719,13 +719,15 @@ class TeamNames(APIView):
         """
         try:
             user = request.user
+            manager_id = None
+            manager_name = None
             conn = report_services.create_sql_server_connection()
             cursor = conn.cursor()
             if is_admin(user):
                 manager_name = request.data.get("manager_name", None)
             else:
                 manager_name = user.full_name.lower()
-            sql_query = report_queries.get_team_names(manager_name)
+            sql_query = report_queries.get_team_names(manager_name, manager_id)
             cursor.execute(sql_query)
             results = cursor.fetchall()
             team_names = [row[0] for row in results]

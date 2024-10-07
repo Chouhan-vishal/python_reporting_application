@@ -1,13 +1,7 @@
 from reporting_application.utils import *
 
-def sales_summary_query(start_date, end_date, pre_date, salesman_names= None, is_sunday=False):
+def sales_summary_query(start_date, end_date, pre_date, salesman_names= None):
     sub_query = ""
-    
-    if is_sunday:
-        pre_date_query = f"""AND CAST(SV.[Voucher Date] AS DATE) BETWEEN '{start_date}' AND '{end_date}'"""
-    else:
-        pre_date_query = f"""AND CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'"""
-    
     if salesman_names:
         sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
     sql_query = f"""
@@ -44,7 +38,7 @@ def sales_summary_query(start_date, end_date, pre_date, salesman_names= None, is
             INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
                 ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
                 AND SV.[Item Details] <> 'Welding Electrodes'
-                {pre_date_query}
+                AND SV.[Voucher Date] BETWEEN '{start_date}' AND '{end_date}'
             GROUP BY 
                 ST.[Team Name],
                 [Sales Person],
@@ -59,7 +53,7 @@ def sales_summary_query(start_date, end_date, pre_date, salesman_names= None, is
         INNER JOIN [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
             ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
         WHERE SV.[Item Details] <> 'Welding Electrodes'
-        {pre_date_query}
+        AND CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'
         GROUP BY ST.[Team Name], [Sales Person]
         )
         SELECT DISTINCT 
@@ -75,16 +69,8 @@ def sales_summary_query(start_date, end_date, pre_date, salesman_names= None, is
     """
     return sql_query
 
-def sales_collection_outstanding_summary(pre_date, salesman_names=None, is_sunday=False):
+def sales_collection_outstanding_summary(pre_date, salesman_names=None):
     sub_query = ''
-    
-    if is_sunday:
-        pre_date_query = f"""CAST(SV.[Voucher Date] AS DATE) BETWEEN '{pre_date}' AND '{is_sunday}'"""
-        pre_day_query1 = f"""CAST(RR.[Receipt Date] AS DATE)BETWEEN '{pre_date}' AND '{is_sunday}'"""
-    else:
-        pre_date_query = f"""CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'"""
-        pre_day_query1 = f"""CAST(RR.[Receipt Date] AS DATE) = '{pre_date}'"""
-        
     if salesman_names:
         sub_query = f"WHERE ST.[Sales Person] in ({salesman_names})"
         
@@ -104,7 +90,7 @@ def sales_collection_outstanding_summary(pre_date, salesman_names=None, is_sunda
             INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
                 ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
             WHERE 
-                {pre_date_query}
+                SV.[Voucher Date] = '{pre_date}'
                 AND SV.[Item Details] <> 'Welding Electrodes'
             GROUP BY 
                 ST.[Team Name],
@@ -119,7 +105,7 @@ def sales_collection_outstanding_summary(pre_date, salesman_names=None, is_sunda
             INNER JOIN [dbo].[tbl_ReceiptRegister] RR WITH (NOLOCK)
                 ON LTRIM(RTRIM(RR.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
             WHERE 
-                {pre_day_query1}
+                CAST(RR.[Receipt Date] AS DATE) = '{pre_date}'
             GROUP BY 
                 ST.[Team Name],
                 ST.[Sales Person]
@@ -153,7 +139,7 @@ def sales_collection_outstanding_summary(pre_date, salesman_names=None, is_sunda
             INNER JOIN [dbo].[tbl_SalesVouchers] SV WITH (NOLOCK)
                 ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
             WHERE 
-                {pre_date_query}
+                CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'
                 AND SV.[Item Details] <> 'Welding Electrodes'
             GROUP BY
                 ST.[Team Name],
@@ -183,14 +169,8 @@ def sales_collection_outstanding_summary(pre_date, salesman_names=None, is_sunda
     """
     return sql_query
 
-def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_names = None, is_sunday=False):
+def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_names = None):
     sub_query = ""
-    
-    if is_sunday:
-        pre_date_query = f"""AND CAST(SV.[Voucher Date] AS DATE) BETWEEN '{start_date}' AND '{end_date}'"""
-    else:
-        pre_date_query = f"""AND CAST(SV.[Voucher Date] AS DATE) = '{pre_date}'"""
-    
     if salesman_names:
         sub_query = f"[Sales Person] IN ({salesman_names})"
     sql_query = f"""
@@ -305,8 +285,9 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
                 FROM dbo.tbl_ItemsList IL WITH (NOLOCK)
             ) IL   
                 ON IL.[Item Details] = SV.[Item Details]
+            WHERE SV.[Voucher Date] = CAST(GETDATE() - 1 AS DATE)
             AND SV.[Item Details] <> 'Welding Electrodes'
-            {pre_date_query}
+            AND {sub_query}
             GROUP BY 
                 ST.[Team Name], 
                 IL.[Item Category]
@@ -646,14 +627,8 @@ def salesman_and_product_wise_query(user, salesman_names, month, year=None):
     """
     return sql_query
 
-def target_and_achieved_query(year, month, pre_day, salesman_names= None, is_sunday=False):
+def target_and_achieved_query(year, month, pre_day, salesman_names= None):
     sub_query = ''
-    
-    if is_sunday:
-        pre_date_query = f"""AND CAST(SV.[Voucher Date] AS DATE) BETWEEN '{pre_day}' AND '{is_sunday}'"""
-    else:
-        pre_date_query = f"""AND CAST(SV.[Voucher Date] AS DATE) = '{pre_day}'"""
-
     if salesman_names:
         sub_query =  f"WHERE ST.[Sales Person] in ({salesman_names})"
 
@@ -720,7 +695,7 @@ def target_and_achieved_query(year, month, pre_day, salesman_names= None, is_sun
             INNER JOIN [dbo].[tbl_SalesTeam] ST WITH (NOLOCK)
                 ON LTRIM(RTRIM(SV.[Sales Person -2])) = LTRIM(RTRIM(ST.[Sales Person]))
             WHERE SV.[Item Details] <> 'Welding Electrodes'
-            {pre_date_query}
+            AND CAST(SV.[Voucher Date] AS DATE) = '{pre_day}'
             GROUP BY ST.[Team Name], [Sales Person]
         ),
         Outstanding AS (

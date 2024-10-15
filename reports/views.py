@@ -1007,9 +1007,10 @@ class AllCustomersSales(APIView):
     def post(self,request):
         try:
             team_name = request.data.get("team_name")
+            salesman_name = request.data.get("salesman")
             user = request.user
             try:
-                salesman_names = report_services.get_salesmans_for_user(user, team_name)
+                salesman_names = report_services.get_salesmans_for_user(user, team_name, salesman_name)
             except Exception as e:
                 return Response({"error": str(e)}, status=400)
             

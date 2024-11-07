@@ -171,15 +171,12 @@ def create_log(user, report_name):
 class HasReportPermission(BasePermission):
     message = "You do not have permission to view this report."
     def has_permission(self, request, view):
-        report_view = view.get_view_name()
-        all_reports = Reports.objects.all()
-        report_name_to_permission_map = {
-            report.reports_name: report.keys
-            for report in all_reports
-        }
-        report_permission = report_name_to_permission_map.get(report_view)
-        if report_permission and hasattr(request.user, 'permitted_reports'):
-            return request.user.permitted_reports.reports_permission.get(report_permission, False)
+        report_key = view.REPORT_KEY
+
+        if hasattr(request.user, 'permitted_reports'):
+            user_permissions = request.user.permitted_reports.reports_permission
+            if user_permissions.get(report_key, False):
+                return True
         raise PermissionDenied(self.message)
 
 def get_last_n_months_names(n):

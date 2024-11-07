@@ -171,7 +171,6 @@ def create_log(user, report_name):
 class HasReportPermission(BasePermission):
     message = "You do not have permission to view this report."
     def has_permission(self, request, view):
-        import pdb;pdb.set_trace()
         report_key = view.REPORT_KEY
 
         if hasattr(request.user, 'permitted_reports'):

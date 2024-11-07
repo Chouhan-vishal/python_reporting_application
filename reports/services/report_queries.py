@@ -115,7 +115,7 @@ def sales_collection_outstanding_summary(pre_date, salesman_names=None):
                 ST.[Team Name],    
                 ST.[Sales Person],
                 SUM(OS.[Pending Amount]) AS [Total Outstanding],
-                SUM(CASE WHEN OS.Ageing > 25 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 25 Days Outstanding],
+                SUM(CASE WHEN OS.Ageing > 30 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 30 Days Outstanding],
                 SUM(CASE WHEN OS.Ageing > 45 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 45 Days Outstanding],
                 SUM(CASE WHEN OS.Ageing > 90 THEN OS.[Pending Amount] ELSE 0 END) AS [Above 90 Days Outstanding]
             FROM SalesTeam ST
@@ -151,7 +151,7 @@ def sales_collection_outstanding_summary(pre_date, salesman_names=None):
             COALESCE(S.Sales, 0) AS Sales,
             COALESCE(CA.[Collection Amount], 0) AS [Collection Amount],
             COALESCE(O.[Total Outstanding], 0) AS [Total Outstanding],
-            COALESCE(O.[Above 25 Days Outstanding], 0) AS [Above 25 Days Outstanding],
+            COALESCE(O.[Above 30 Days Outstanding], 0) AS [Above 30 Days Outstanding],
             COALESCE(O.[Above 45 Days Outstanding], 0) AS [Above 45 Days Outstanding],
             COALESCE(O.[Above 90 Days Outstanding], 0) AS [Above 90 Days Outstanding],
             COALESCE(PDS.[PreDaySales], 0) AS [PreDaySales]
@@ -416,10 +416,19 @@ def weekly_report_query(user, salesman_names):
             ST.[Sales Person] AS [Sales Men], 
             COALESCE(TC.[Target Qty], 0) AS [Sales Target],
             COALESCE(S.[Achv Qty], 0) AS [Achv],
-            ISNULL(ROUND(CAST(COALESCE(S.[Achv Qty], 0) AS FLOAT) / NULLIF(CAST(COALESCE(TC.[Target Qty], 0) AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
+            ISNULL(
+                ROUND(
+                    CAST(COALESCE(S.[Achv Qty], 0) AS FLOAT) / 
+                    NULLIF(CAST(COALESCE(TC.[Target Qty], 0) AS FLOAT), 0) * 100, 0
+                ), 0
+            ) AS [Achv %],
             CAST(COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0) AS DECIMAL(12,2)) AS [Pending Target],
-            CAST((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / @Workingdays AS DECIMAL(12,2)) AS [Daily Target],
-            CAST(((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / @Workingdays) * 6 AS DECIMAL(12,2)) AS [Weekly Target],
+            ISNULL(
+                CAST((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / NULLIF(@Workingdays, 0) AS DECIMAL(12,2)), 0
+            ) AS [Daily Target],
+            ISNULL(
+                CAST(((COALESCE(TC.[Target Qty], 0) - COALESCE(S.[Achv Qty], 0)) / NULLIF(@Workingdays, 0)) * 6 AS DECIMAL(12,2)), 0
+            ) AS [Weekly Target],
             COALESCE(O.[Above 25 Days Outstanding], 0) AS [Collection Target],
             COALESCE(CA.[Collection Amount], 0) AS [Collection Achv],
             COALESCE(WS.[Weekly Achvd Qty], 0) AS [Weekly Achvd Qty]
@@ -429,9 +438,8 @@ def weekly_report_query(user, salesman_names):
         LEFT JOIN CollectionAmount CA ON ST.[Sales Person] = CA.[Sales Person]
         LEFT JOIN Outstandings O ON ST.[Sales Person] = O.[Sales Person]
         LEFT JOIN WeeklySales WS ON ST.[Sales Person] = WS.[Sales Person] AND ST.[Team Name] = WS.[Team Name]
-
         {sub_query}
-        ORDER BY ST.[Team Name] ;
+        ORDER BY ST.[Team Name]
         """
     return sql_query
 
@@ -1254,9 +1262,11 @@ def review_salesman_wise_query2(start_date = None, end_date = None, salesman_nam
     """
     return sql_query
 
-def get_team_names(manager_name = None):
+def get_team_names(manager_name = None, manager_id =None):
     sub_query = ''
-    if manager_name:
+    if manager_id:
+        sub_query = f" WHERE LOWER(ST.[Reporting Manager EMP ID]) = '{manager_id}'"
+    else:
         sub_query = f" WHERE LOWER(ST.[Reporting Manager Name]) = '{manager_name}'"
     sql_query = f"""
         SELECT DISTINCT

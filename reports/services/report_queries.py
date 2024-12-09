@@ -285,7 +285,7 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
                 FROM dbo.tbl_ItemsList IL WITH (NOLOCK)
             ) IL   
                 ON IL.[Item Details] = SV.[Item Details]
-            WHERE SV.[Voucher Date] = CAST(GETDATE() - 1 AS DATE)
+            WHERE SV.[Voucher Date] = '{pre_date}'
             AND SV.[Item Details] <> 'Welding Electrodes'
             AND {sub_query}
             GROUP BY 
@@ -294,15 +294,11 @@ def product_wise_sales_summary_query(start_date, end_date, pre_date, salesman_na
         )
 
         -- Final Sales Report Query
-        SELECT    
-            CAST(GETDATE() AS DATE) AS [Sales Date], 
+        SELECT
             SRF.[Team Name],    
             SRF.[Product cluster],
             SRF.[Target Qty],
             SRF.[Achv Qty],
-            ISNULL(ROUND(CAST(SRF.[Achv Qty] AS FLOAT) / NULLIF(CAST(SRF.[Target Qty] AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
-            MAX(SRF.[MonthName]) OVER (PARTITION BY SRF.[Team Name]) AS [MonthName], 
-            MAX(SRF.YearNo) OVER (PARTITION BY SRF.[Team Name]) AS YearNo,
             ISNULL(PDS.[PrevDayAchvQty], 0) AS [PrevDayAchvQty]  -- Adding previous day's achieved quantity
         FROM SalesReportFinal SRF
         LEFT JOIN PrevDaySales PDS

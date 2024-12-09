@@ -234,13 +234,13 @@ class ProductWiseSalesSummary(APIView):
 
             # Iterate through the data and process it within the same loop
             for entry in results:
-                team_name = entry[1]
-                product_name = entry[2]
+                team_name = entry[0]
+                product_name = entry[1]
                 
                 # Calculate values based on input, ensuring that None values are handled
-                target_qty = (float(entry[3]) if entry[3] is not None else 0.0) * month_count
-                achieved = float(entry[4]) if entry[4] is not None else 0.0
-                pre_day = float(entry[8]) if entry[8] is not None else 0.0
+                target_qty = (float(entry[2]) if entry[2] is not None else 0.0) * month_count
+                achieved = float(entry[3]) if entry[3] is not None else 0.0
+                pre_day = float(entry[4]) if entry[4] is not None else 0.0
 
                 # Calculate the achieved percentage (achvd_per), handling division by zero
                 achvd_per = (achieved / target_qty * 100) if target_qty > 0 else 0.0

@@ -59,10 +59,10 @@ def sales_summary_query(start_date, end_date, pre_date, salesman_names= None):
         SELECT DISTINCT 
             ST.[Team Name],
             ST.[Sales Person],
-            ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],  
-            ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
-            ISNULL(ROUND(CAST(ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT) / NULLIF(CAST(ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
-            ISNULL((SELECT [Achv Qty] FROM PreviousDateQty WHERE PreviousDateQty.[Team Name] = ST.[Team Name] AND PreviousDateQty.[Sales Person] = ST.[Sales Person]), 0) AS [Previous Date Qty]
+            ISNULL((SELECT SUM([Target Qty]) FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],  
+            ISNULL((SELECT SUM([Achv Qty]) FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
+            ISNULL(ROUND(CAST(ISNULL((SELECT SUM([Achv Qty]) FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT) / NULLIF(CAST(ISNULL((SELECT SUM([Target Qty]) FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
+            ISNULL((SELECT SUM([Achv Qty]) FROM PreviousDateQty WHERE PreviousDateQty.[Team Name] = ST.[Team Name] AND PreviousDateQty.[Sales Person] = ST.[Sales Person]), 0) AS [Previous Date Qty]
         FROM SalesTeamCTE ST
         {sub_query}
         ORDER BY ST.[Team Name], ST.[Sales Person];
@@ -714,13 +714,13 @@ def target_and_achieved_query(year, month, pre_day, salesman_names= None):
         SELECT DISTINCT 
             ST.[Team Name],
             ST.[Sales Person],
-            ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],  
-            ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
-            ISNULL(ROUND(CAST(ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT) / NULLIF(CAST(ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
-            ISNULL((SELECT [Achv Qty] FROM PreviousDateQty WHERE PreviousDateQty.[Team Name] = ST.[Team Name] AND PreviousDateQty.[Sales Person] = ST.[Sales Person]), 0) AS [Previous Date Qty],
-            ISNULL((SELECT [Above 25 Days Outstanding] FROM Outstanding WHERE Outstanding.[Team Name] = ST.[Team Name] AND Outstanding.[Sales Person] = ST.[Sales Person]), 0) AS [Above 25 Days Outstanding],
-            ISNULL((SELECT [Target Customer Count] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Count],
-            ISNULL((SELECT [Target Customer Reached] FROM CustomerReached WHERE CustomerReached.[Team Name] = ST.[Team Name] AND CustomerReached.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Reached]
+            ISNULL((SELECT SUM([Target Qty]) FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],  
+            ISNULL((SELECT SUM([Achv Qty]) FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
+            ISNULL(ROUND(CAST(ISNULL((SELECT SUM([Achv Qty]) FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT) / NULLIF(CAST(ISNULL((SELECT SUM([Target Qty]) FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS FLOAT), 0) * 100, 0), 0) AS [Achv %],
+            ISNULL((SELECT SUM([Achv Qty]) FROM PreviousDateQty WHERE PreviousDateQty.[Team Name] = ST.[Team Name] AND PreviousDateQty.[Sales Person] = ST.[Sales Person]), 0) AS [Previous Date Qty],
+            ISNULL((SELECT SUM([Above 25 Days Outstanding]) FROM Outstanding WHERE Outstanding.[Team Name] = ST.[Team Name] AND Outstanding.[Sales Person] = ST.[Sales Person]), 0) AS [Above 25 Days Outstanding],
+            ISNULL((SELECT SUM([Target Customer Count]) FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Count],
+            ISNULL((SELECT SUM([Target Customer Reached]) FROM CustomerReached WHERE CustomerReached.[Team Name] = ST.[Team Name] AND CustomerReached.[Sales Person] = ST.[Sales Person]), 0) AS [Target Customer Reached]
         FROM SalesTeamCTE ST
         {sub_query}
         ORDER BY ST.[Team Name], ST.[Sales Person];
@@ -1377,8 +1377,8 @@ class InsentiveQueries:
             SELECT DISTINCT
             ST.[Team Name],
             ST.[Sales Person],
-            ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],
-            ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
+            ISNULL((SELECT SUM([Target Qty]) FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS [Target Qty],
+            ISNULL((SELECT SUM([Achv Qty]) FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS [Achv Qty],
             ISNULL(ROUND(CAST(ISNULL((SELECT [Achv Qty] FROM Sales WHERE Sales.[Team Name] = ST.[Team Name] AND Sales.[Sales Person] = ST.[Sales Person]), 0) AS float) / NULLIF(CAST(ISNULL((SELECT [Target Qty] FROM TargetCustomers WHERE TargetCustomers.[Team Name] = ST.[Team Name] AND TargetCustomers.[Sales Person] = ST.[Sales Person]), 0) AS float), 0) * 100, 0), 0) AS [Achv %],
             FS.[Condition Met] AS [Condition Met]
             FROM SalesTeamCTE ST
